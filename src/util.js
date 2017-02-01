@@ -29,7 +29,17 @@ async function getConfig () {
       username: 'root',
       password: 'qwerty'
     },
-    slaveServer: {
+    xenServer3: {
+      host: '192.168.100.4',
+      username: 'root',
+      password: 'qwerty'
+    },
+    xenServer4: {
+      host: '192.168.100.5',
+      username: 'root',
+      password: 'qwerty'
+    },
+    masterServer: {
       host: '192.168.100.1',
       username: 'root',
       password: 'qwerty',
@@ -37,7 +47,7 @@ async function getConfig () {
     },
     pvVm: 'xo-test-pv',
     vmToMigrate: 'souad',
-    network: 'Pool-wide network associated with eth0',
+    network: 'Pool-wide network associated with eth1',
     iso: 'Windows7Ultimate.iso',
     pool: 'lab3',
     templates: {
@@ -153,7 +163,7 @@ export async function deleteUsers (xo, userIds) {
 // ==================================================================
 
 export function getAllHosts (xo) {
-  return xo.objects.indexes.type.host
+  return filter(xo.objects.all, {type: 'host'})
 }
 
 export function getOneHost (xo) {
@@ -167,19 +177,21 @@ export function getOneHost (xo) {
 
 // ==================================================================
 
-export async function getNetworkId (xo) {
-  const config = await getConfig()
-  const networks = xo.objects.indexes.type.network
-  const network = find(networks, {name_label: config.network})
+export async function getNetworkId ({
+  xo,
+  config
+}) {
+  const network = find(xo.objects.all, {type: 'network', name_label: config.network})
   return network.id
 }
 
 // ==================================================================
 
-export async function getVmXoTestPvId (xo) {
-  const config = await getConfig()
-  const vms = xo.objects.indexes.type.VM
-  const vm = find(vms, {name_label: config.pvVm})
+export async function getVmXoTestPvId ({
+  xo,
+  config
+}) {
+  const vm = find(xo.objects.all, {type: 'VM', name_label: config.pvVm})
   return vm.id
 }
 
@@ -194,8 +206,11 @@ export async function getVmToMigrateId (xo) {
 
 export async function getSrId (xo) {
   const host = getOneHost(xo)
-  const pool = await xo.getOrWaitObject(host.$poolId)
-  return pool.default_SR
+  let srId
+  await waitObjectState(xo, host.$poolId, pool => {
+    srId = pool.default_SR
+  })
+  return srId
 }
 
 // ==================================================================
