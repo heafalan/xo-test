@@ -68,7 +68,8 @@
   "jest": {
     "testPathDirs": [
       "<rootDir>/src"
-    ]
+    ],
+    "setupTestFrameworkScriptFile": "<rootDir>/jestSetup.js"
   },
   "standard": {
     "ignore": [

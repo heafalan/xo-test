@@ -34,22 +34,7 @@ async function getConfig () {
       username: 'root',
       password: 'qwerty'
     },
-    xenServer4: {
-      host: '192.168.100.5',
-      username: 'root',
-      password: 'qwerty'
-    },
-    masterServer: {
-      host: '192.168.100.1',
-      username: 'root',
-      password: 'qwerty',
-      autoConnect: false
-    },
-    pvVm: 'xo-test-pv',
-    vmToMigrate: 'souad',
-    network: 'Pool-wide network associated with eth1',
     iso: 'Windows7Ultimate.iso',
-    pool: 'lab3',
     templates: {
       debian: 'Debian Wheezy 7.0 (64-bit)',
       otherConfig: 'Other install media',
@@ -138,8 +123,8 @@ afterAll(async () => {
 
 // =================================================================
 
-export async function getAllUsers (xo) {
-  return await xo.call('user.getAll')
+export function getAllUsers (xo) {
+  return xo.call('user.getAll')
 }
 
 export async function getUser (xo, id) {
@@ -162,55 +147,19 @@ export async function deleteUsers (xo, userIds) {
 
 // ==================================================================
 
-export function getAllHosts (xo) {
-  return filter(xo.objects.all, {type: 'host'})
-}
-
-export function getOneHost (xo) {
-  const hosts = getAllHosts(xo)
-  for (const id in hosts) {
-    return hosts[id]
-  }
-
-  throw new Error('no hosts found')
+export function getPoolTest () {
+  return find(xo.objects.all, {type: 'pool', name_label: config.pool})
 }
 
 // ==================================================================
 
-export async function getNetworkId ({
-  xo,
-  config
-}) {
-  const network = find(xo.objects.all, {type: 'network', name_label: config.network})
-  return network.id
+export function getNetworkId () {
+  return find(xo.objects.all, {type: 'network', $poolId: getPoolTest().id}).id
 }
 
 // ==================================================================
-
-export async function getVmXoTestPvId ({
-  xo,
-  config
-}) {
-  const vm = find(xo.objects.all, {type: 'VM', name_label: config.pvVm})
-  return vm.id
-}
-
-export async function getVmToMigrateId (xo) {
-  const config = await getConfig()
-  const vms = xo.objects.indexes.type.VM
-  const vm = find(vms, {name_label: config.vmToMigrate})
-  return vm.id
-}
-
-// ==================================================================
-
-export async function getSrId (xo) {
-  const host = getOneHost(xo)
-  let srId
-  await waitObjectState(xo, host.$poolId, pool => {
-    srId = pool.default_SR
-  })
-  return srId
+export function getSrId () {
+  return getPoolTest().default_SR
 }
 
 // ==================================================================
