@@ -1,15 +1,13 @@
 /* eslint-env jest */
 
 import eventToPromise from 'event-to-promise'
+
 import {
-  map,
-  find
+  map
 } from 'lodash'
 
 import {
   config,
-  getNetworkId,
-  getSrId,
   waitObjectState,
   xo
 } from './../util'
@@ -17,48 +15,31 @@ import {
 // ===================================================================
 
 describe('.create()', () => {
-  let vmId
+  const vmsToDelete = []
   let networkId
-  let srId
   let serverId
-  let vmsId = []
-
-  // ----------------------------------------------------------------------
-
-  function createVmTest () {
-    return xo.call('vm.create', {
-      name_label: 'vmTest',
-      template: getTemplateId(config.templates.debian),
-      VIFs: []
-    })
-  }
-
-  function deleteVm (id) {
-    return xo.call('vm.delete', {id, delete_disks: true})
-  }
-
-  function getTemplateId (nameTemplate) {
-    return find(xo.objects.all, {type: 'VM-template', name_label: nameTemplate}).id
-  }
+  let srId
 
   // ----------------------------------------------------------------------
 
   beforeAll(async () => {
-    serverId = await xo.call('server.add', config.masterServer)
-    await eventToPromise(xo.objects, 'finish')
+    networkId = config.labPoolNetworkId
+    srId = config.labPoolSrId
 
-    networkId = getNetworkId()
-    srId = getSrId()
+    serverId = await xo.call('server.add', config.lab1)
+    await eventToPromise(xo.objects, 'finish')
+  })
+
+  // ----------------------------------------------------------------------
+
+  afterEach(async () => {
+    await Promise.all(map(vmsToDelete, id => xo.call('vm.delete', {id, delete_disks: true})))
+    vmsToDelete.length = 0
   })
 
   // ----------------------------------------------------------------------
 
   afterAll(async () => {
-    await Promise.all(map(
-      vmsId,
-      vmId => deleteVm(vmId)))
-    vmsId = []
-
     await xo.call('server.remove', {
       id: serverId
     })
@@ -67,27 +48,31 @@ describe('.create()', () => {
   // =================================================================
 
   it('creates a VM with only a name and a template', async () => {
-    vmId = await createVmTest()
-    vmsId.push(vmId)
+    const vmId = await xo.call('vm.create', {
+      name_label: 'vmTest',
+      template: config.templatesId.debian,
+      VIFs: []
+    }).catch(error => {
+      if (error.name === 'ConnectionError' && error.message === 'connection has been closed') {
+        console.error('The creation of the vm takes a lot of time. Delete it manually if it is created!')
+      }
+    })
+    vmsToDelete.push(vmId)
 
     await waitObjectState(xo, vmId, vm => {
       expect(typeof vm.id).toBe('string')
       expect(vm.name_label).toBe('vmTest')
+      expect(vm.other.base_template_name).toBe(config.templates.debian)
+      expect(vm.VIFs).toHaveLength(0)
+      expect(vm.$VBDs).toHaveLength(0)
     })
   })
 
   describe('.createHVM()', () => {
-    let templateId
-
-    beforeAll(async () => {
-      templateId = getTemplateId(config.templates.otherConfig)
-    })
-
-    it.skip('creates a VM with the Other Config template, three disks, two interfaces and a ISO mounted', async () => {
-      const networkId = await getNetworkId(xo)
-      vmId = await xo.call('vm.create', {
+    it('creates a VM with the Other Config template, three disks, two interfaces and a ISO mounted', async () => {
+      const vmId = await xo.call('vm.create', {
         name_label: 'vmTest',
-        template: templateId,
+        template: config.templatesId.otherConfig,
         VIFs: [
           {network: networkId},
           {network: networkId}
@@ -108,10 +93,15 @@ describe('.create()', () => {
             type: 'user'
           }
         ]
+      }).catch(error => {
+        if (error.name === 'ConnectionError' && error.message === 'connection has been closed') {
+          console.error('The creation of the vm takes a lot of time. Delete it manually if it is created!')
+        }
       })
-      vmsId.push(vmId)
+      vmsToDelete.push(vmId)
 
       await waitObjectState(xo, vmId, vm => {
+        expect(typeof vm.id).toBe('string')
         expect(vm.name_label).toBe('vmTest')
         expect(vm.other.base_template_name).toEqual(config.templates.otherConfig)
         expect(vm.VIFs).toHaveLength(2)
@@ -119,15 +109,21 @@ describe('.create()', () => {
       })
     })
 
-    it.skip('creates a VM with the Other Config template, no disk, no network and a ISO mounted', async () => {
-      vmId = await xo.call('vm.create', {
+    it('creates a VM with the Other Config template, no disk, no network and a ISO mounted', async () => {
+      const vmId = await xo.call('vm.create', {
         name_label: 'vmTest',
-        template: templateId,
+        template: config.templatesId.otherConfig,
         VIFs: []
+      }).catch(error => {
+        if (error.name === 'ConnectionError' && error.message === 'connection has been closed') {
+          console.error('The creation of the vm takes a lot of time. Delete it manually if it is created!')
+        }
       })
-      vmsId.push(vmId)
+      vmsToDelete.push(vmId)
 
       await waitObjectState(xo, vmId, vm => {
+        expect(typeof vm.id).toBe('string')
+        expect(vm.name_label).toBe('vmTest')
         expect(vm.other.base_template_name).toEqual(config.templates.otherConfig)
         expect(vm.VIFs).toHaveLength(0)
         expect(vm.$VBDs).toHaveLength(0)
@@ -135,10 +131,10 @@ describe('.create()', () => {
     })
   })
   describe('.createPV()', () => {
-    it.skip('creates a VM with the Debian 7 64 bits template, network install, one disk, one network', async () => {
-      vmId = await xo.call('vm.create', {
+    it('creates a VM with the Debian 7 64 bits template, network install, one disk, one network', async () => {
+      const vmId = await xo.call('vm.create', {
         name_label: 'vmTest',
-        template: getTemplateId(config.templates.debian),
+        template: config.templatesId.debian,
         VIFs: [{network: networkId}],
         VDIs: [{
           device: '0',
@@ -146,10 +142,16 @@ describe('.create()', () => {
           SR: srId,
           type: 'user'
         }]
+      }).catch(error => {
+        if (error.name === 'ConnectionError' && error.message === 'connection has been closed') {
+          console.error('The creation of the vm takes a lot of time. Delete it manually if it is created!')
+        }
       })
-      vmsId.push(vmId)
+      vmsToDelete.push(vmId)
 
       await waitObjectState(xo, vmId, vm => {
+        expect(typeof vm.id).toBe('string')
+        expect(vm.name_label).toBe('vmTest')
         expect(vm.other.base_template_name).toEqual(config.templates.debian)
         expect(vm.VIFs).toHaveLength(1)
         expect(vm.$VBDs).toHaveLength(1)
@@ -157,9 +159,9 @@ describe('.create()', () => {
     })
 
     it('creates a VM with the CentOS 7 64 bits template, two disks, two networks and a ISO mounted', async () => {
-      vmId = await xo.call('vm.create', {
+      const vmId = await xo.call('vm.create', {
         name_label: 'vmTest',
-        template: getTemplateId(config.templates.centOS),
+        template: config.templatesId.centOS,
         VIFs: [
           {network: networkId},
           {network: networkId}
@@ -174,10 +176,16 @@ describe('.create()', () => {
             SR: srId,
             type: 'user'}
         ]
+      }).catch(error => {
+        if (error.name === 'ConnectionError' && error.message === 'connection has been closed') {
+          console.error('The creation of the vm takes a lot of time. Delete it manually if it is created!')
+        }
       })
-      vmsId.push(vmId)
+      vmsToDelete.push(vmId)
 
       await waitObjectState(xo, vmId, vm => {
+        expect(typeof vm.id).toBe('string')
+        expect(vm.name_label).toBe('vmTest')
         expect(vm.other.base_template_name).toEqual(config.templates.centOS)
         expect(vm.VIFs).toHaveLength(2)
         expect(vm.$VBDs).toHaveLength(2)

@@ -1,16 +1,15 @@
+/* eslint-env jest */
+
 import defer from 'golike-defer'
-import expect from 'must'
 import {
+  cloneDeep,
   find,
   forEach,
-  map,
-  cloneDeep
+  map
 } from 'lodash'
 
 import Xo from 'xo-lib'
 import XoCollection from 'xo-collection'
-
-/* eslint-env jest */
 
 async function getConfig () {
   return {
@@ -19,29 +18,29 @@ async function getConfig () {
       password: 'admin'
     },
     xoServerUrl: 'localhost:9000',
-    xenServer1: {
-      host: '192.168.100.3',
+    labPoolNetworkId: '887b96dc-1e24-b616-1523-9c5818c534eb',
+    labPoolSrId: 'e6616eb6-d719-b7a3-95a8-73881b90c25e',
+    lab1: {
+      host: '192.168.100.1',
       username: 'root',
       password: 'qwerty'
     },
-    xenServer2: {
-      host: '192.168.100.2',
-      username: 'root',
-      password: 'qwerty'
-    },
-    xenServer3: {
+    lab4: {
       host: '192.168.100.4',
       username: 'root',
       password: 'qwerty'
     },
-    iso: 'Windows7Ultimate.iso',
+    isoId: '6db0fc7d-f1ca-495c-a338-09a57aa1e45b',
     templates: {
       debian: 'Debian Wheezy 7.0 (64-bit)',
       otherConfig: 'Other install media',
       centOS: 'CentOS 7'
     },
-    // powerOnMode has to be not empty
-    host1: 'lab1'
+    templatesId: {
+      debian: '4f4f3a4f-2529-6c0e-9404-717f6048796a',
+      otherConfig: '5091f8d3-c9a8-2519-ece6-aa2d964e1884',
+      centOS: 'aa3f913a-15df-b20f-a858-f4d538020337'
+    }
   }
 }
 
@@ -143,23 +142,6 @@ export async function deleteUsers (xo, userIds) {
     userIds,
     userId => xo.call('user.delete', {id: userId})
   ))
-}
-
-// ==================================================================
-
-export function getPoolTest () {
-  return find(xo.objects.all, {type: 'pool', name_label: config.pool})
-}
-
-// ==================================================================
-
-export function getNetworkId () {
-  return find(xo.objects.all, {type: 'network', $poolId: getPoolTest().id}).id
-}
-
-// ==================================================================
-export function getSrId () {
-  return getPoolTest().default_SR
 }
 
 // ==================================================================
