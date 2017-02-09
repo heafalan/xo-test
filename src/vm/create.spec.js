@@ -3,10 +3,6 @@
 import eventToPromise from 'event-to-promise'
 
 import {
-  map
-} from 'lodash'
-
-import {
   config,
   waitObjectState,
   xo
@@ -15,17 +11,12 @@ import {
 // ===================================================================
 
 describe('.create()', () => {
-  const vmsToDelete = []
-  let networkId
   let serverId
-  let srId
+  let vmId
 
   // ----------------------------------------------------------------------
 
   beforeAll(async () => {
-    networkId = config.labPoolNetworkId
-    srId = config.labPoolSrId
-
     serverId = await xo.call('server.add', config.lab1)
     await eventToPromise(xo.objects, 'finish')
   })
@@ -33,8 +24,7 @@ describe('.create()', () => {
   // ----------------------------------------------------------------------
 
   afterEach(async () => {
-    await Promise.all(map(vmsToDelete, id => xo.call('vm.delete', {id, delete_disks: true})))
-    vmsToDelete.length = 0
+    xo.call('vm.delete', {id: vmId, delete_disks: true})
   })
 
   // ----------------------------------------------------------------------
@@ -48,140 +38,126 @@ describe('.create()', () => {
   // =================================================================
 
   it('creates a VM with only a name and a template', async () => {
-    const vmId = await xo.call('vm.create', {
+    vmId = await xo.call('vm.create', {
       name_label: 'vmTest',
-      template: config.templatesId.debian,
-      VIFs: []
-    }).catch(error => {
-      if (error.name === 'ConnectionError' && error.message === 'connection has been closed') {
-        console.error('The creation of the vm takes a lot of time. Delete it manually if it is created!')
-      }
+      template: config.templatesId.debian
     })
-    vmsToDelete.push(vmId)
 
-    await waitObjectState(xo, vmId, vm => {
+    const vm = await xo.getOrWaitObject(vmId)
+    expect(typeof vm.id).toBe('string')
+    expect(vm.name_label).toBe('vmTest')
+    expect(vm.other.base_template_name).toBe(config.templates.debian)
+    expect(vm.VIFs).toHaveLength(0)
+    expect(vm.$VBDs).toHaveLength(0)
+  })
+
+  describe('create HVM', () => {
+    beforeEach(async () => {
+      jasmine.DEFAULT_TIMEOUT_INTERVAL = 50e3
+    })
+
+    it('creates a VM with the Other Config template, three disks, two interfaces and no ISO mounted', async () => {
+      vmId = await xo.call('vm.create', {
+        name_label: 'vmTest',
+        template: config.templatesId.otherConfig,
+        VIFs: [
+          {network: config.labPoolNetworkId},
+          {network: config.labPoolNetworkId}
+        ],
+        VDIs: [
+          {
+            device: '0',
+            size: 1,
+            SR: config.labPoolSrId,
+            type: 'user'
+          },
+          {
+            device: '1',
+            size: 1,
+            SR: config.labPoolSrId,
+            type: 'user'
+          },
+          {
+            device: '2',
+            size: 1,
+            SR: config.labPoolSrId,
+            type: 'user'
+          }
+        ]
+      })
+
+      const vm = await xo.getOrWaitObject(vmId)
       expect(typeof vm.id).toBe('string')
       expect(vm.name_label).toBe('vmTest')
-      expect(vm.other.base_template_name).toBe(config.templates.debian)
+      expect(vm.other.base_template_name).toEqual(config.templates.otherConfig)
+      expect(vm.VIFs).toHaveLength(2)
+      expect(vm.$VBDs).toHaveLength(3)
+    })
+
+    it('creates a VM with the Other Config template, no disk, no network and no ISO mounted', async () => {
+      vmId = await xo.call('vm.create', {
+        name_label: 'vmTest',
+        template: config.templatesId.otherConfig
+      })
+
+      const vm = await xo.getOrWaitObject(vmId)
+      expect(typeof vm.id).toBe('string')
+      expect(vm.name_label).toBe('vmTest')
+      expect(vm.other.base_template_name).toEqual(config.templates.otherConfig)
       expect(vm.VIFs).toHaveLength(0)
       expect(vm.$VBDs).toHaveLength(0)
     })
   })
 
-  describe('.createHVM()', () => {
-    it('creates a VM with the Other Config template, three disks, two interfaces and a ISO mounted', async () => {
-      const vmId = await xo.call('vm.create', {
-        name_label: 'vmTest',
-        template: config.templatesId.otherConfig,
-        VIFs: [
-          {network: networkId},
-          {network: networkId}
-        ],
-        VDIs: [
-          {device: '0',
-            size: 1,
-            SR: srId,
-            type: 'user'},
-          {device: '1',
-            size: 1,
-            SR: srId,
-            type: 'user'
-          },
-          {device: '2',
-            size: 1,
-            SR: srId,
-            type: 'user'
-          }
-        ]
-      }).catch(error => {
-        if (error.name === 'ConnectionError' && error.message === 'connection has been closed') {
-          console.error('The creation of the vm takes a lot of time. Delete it manually if it is created!')
-        }
-      })
-      vmsToDelete.push(vmId)
-
-      await waitObjectState(xo, vmId, vm => {
-        expect(typeof vm.id).toBe('string')
-        expect(vm.name_label).toBe('vmTest')
-        expect(vm.other.base_template_name).toEqual(config.templates.otherConfig)
-        expect(vm.VIFs).toHaveLength(2)
-        expect(vm.$VBDs).toHaveLength(3)
-      })
+  describe.only('create PV', () => {
+    beforeEach(async () => {
+      jasmine.DEFAULT_TIMEOUT_INTERVAL = 50e3
     })
 
-    it('creates a VM with the Other Config template, no disk, no network and a ISO mounted', async () => {
-      const vmId = await xo.call('vm.create', {
-        name_label: 'vmTest',
-        template: config.templatesId.otherConfig,
-        VIFs: []
-      }).catch(error => {
-        if (error.name === 'ConnectionError' && error.message === 'connection has been closed') {
-          console.error('The creation of the vm takes a lot of time. Delete it manually if it is created!')
-        }
-      })
-      vmsToDelete.push(vmId)
-
-      await waitObjectState(xo, vmId, vm => {
-        expect(typeof vm.id).toBe('string')
-        expect(vm.name_label).toBe('vmTest')
-        expect(vm.other.base_template_name).toEqual(config.templates.otherConfig)
-        expect(vm.VIFs).toHaveLength(0)
-        expect(vm.$VBDs).toHaveLength(0)
-      })
-    })
-  })
-  describe('.createPV()', () => {
     it('creates a VM with the Debian 7 64 bits template, network install, one disk, one network', async () => {
-      const vmId = await xo.call('vm.create', {
+      vmId = await xo.call('vm.create', {
         name_label: 'vmTest',
         template: config.templatesId.debian,
-        VIFs: [{network: networkId}],
+        VIFs: [{network: config.labPoolNetworkId}],
         VDIs: [{
           device: '0',
           size: 1,
-          SR: srId,
+          SR: config.labPoolSrId,
           type: 'user'
         }]
-      }).catch(error => {
-        if (error.name === 'ConnectionError' && error.message === 'connection has been closed') {
-          console.error('The creation of the vm takes a lot of time. Delete it manually if it is created!')
-        }
       })
-      vmsToDelete.push(vmId)
 
-      await waitObjectState(xo, vmId, vm => {
-        expect(typeof vm.id).toBe('string')
-        expect(vm.name_label).toBe('vmTest')
-        expect(vm.other.base_template_name).toEqual(config.templates.debian)
-        expect(vm.VIFs).toHaveLength(1)
-        expect(vm.$VBDs).toHaveLength(1)
-      })
+      const vm = await xo.getOrWaitObject(vmId)
+      expect(typeof vm.id).toBe('string')
+      expect(vm.name_label).toBe('vmTest')
+      expect(vm.other.base_template_name).toEqual(config.templates.debian)
+      expect(vm.VIFs).toHaveLength(1)
+      expect(vm.$VBDs).toHaveLength(1)
     })
 
-    it('creates a VM with the CentOS 7 64 bits template, two disks, two networks and a ISO mounted', async () => {
-      const vmId = await xo.call('vm.create', {
+    it('creates a VM with the CentOS 7 64 bits template, two disks, two networks and no ISO mounted', async () => {
+      vmId = await xo.call('vm.create', {
         name_label: 'vmTest',
         template: config.templatesId.centOS,
         VIFs: [
-          {network: networkId},
-          {network: networkId}
+          {network: config.labPoolNetworkId},
+          {network: config.labPoolNetworkId}
         ],
         VDIs: [
-          {device: '0',
+          {
+            device: '0',
             size: 1,
-            SR: srId,
-            type: 'user'},
-          {device: '1',
+            SR: config.labPoolSrId,
+            type: 'user'
+          },
+          {
+            device: '1',
             size: 1,
-            SR: srId,
-            type: 'user'}
+            SR: config.labPoolSrId,
+            type: 'user'
+          }
         ]
-      }).catch(error => {
-        if (error.name === 'ConnectionError' && error.message === 'connection has been closed') {
-          console.error('The creation of the vm takes a lot of time. Delete it manually if it is created!')
-        }
       })
-      vmsToDelete.push(vmId)
 
       await waitObjectState(xo, vmId, vm => {
         expect(typeof vm.id).toBe('string')

@@ -24,14 +24,11 @@ describe('.delete()', () => {
   // ----------------------------------------------------------------------
 
   beforeEach(async () => {
+    jasmine.DEFAULT_TIMEOUT_INTERVAL = 50e3
+
     vmId = await xo.call('vm.create', {
       name_label: 'vmTest',
-      template: config.templatesId.debian,
-      VIFs: []
-    }).catch(error => {
-      if (error.name === 'ConnectionError' && error.message === 'connection has been closed') {
-        console.error('The creation of the vm takes a lot of time. Delete it manually if it is created!')
-      }
+      template: config.templatesId.debian
     })
   })
 
@@ -53,7 +50,7 @@ describe('.delete()', () => {
     })
   })
 
-  it('deletes a VM and its snapshots', async () => {
+  it('deletes a VM and deletes associated snapshots', async () => {
     const snapshotId = await xo.call('vm.snapshot', {
       id: vmId,
       name: 'snapshot'
@@ -85,8 +82,8 @@ describe('.delete()', () => {
 
     await waitObjectState(xo, vmId, async vm => {
       if (vm.$VBDs.length !== 1) throw new Error('retry')
-      await xo.call('vm.delete', {id: vmId, delete_disks: true})
     })
+    await xo.call('vm.delete', {id: vmId, delete_disks: true})
 
     await waitObjectState(xo, diskId, disk => {
       expect(disk).toBeFalsy()
@@ -103,8 +100,8 @@ describe('.delete()', () => {
 
     await waitObjectState(xo, vmId, async vm => {
       if (vm.$VBDs.length !== 1) throw new Error('retry')
-      await xo.call('vm.delete', {id: vmId, delete_disks: true})
     })
+    await xo.call('vm.delete', {id: vmId, delete_disks: true})
 
     await waitObjectState(xo, '1169eb8a-d43f-4daf-a0ca-f3434a4bf301', iso => {
       expect(iso).toBeDefined()
