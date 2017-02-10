@@ -30,7 +30,9 @@ describe('.delete()', () => {
       name_label: 'vmTest',
       template: config.templatesId.debian
     })
-    await xo.getOrWaitObject(vmId)
+    await waitObjectState(xo, vmId, vm => {
+      if (vm.type !== 'VM') throw new Error('retry')
+    })
   })
 
   // ----------------------------------------------------------------------

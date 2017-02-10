@@ -1,6 +1,9 @@
 /* eslint-env jest */
 
 import eventToPromise from 'event-to-promise'
+import {
+  map
+} from 'lodash'
 
 import {
   config,
@@ -11,8 +14,8 @@ import {
 // ===================================================================
 
 describe('.create()', () => {
+  const vmsToDelete = []
   let serverId
-  let vmId
 
   // ----------------------------------------------------------------------
 
@@ -23,13 +26,10 @@ describe('.create()', () => {
 
   // ----------------------------------------------------------------------
 
-  afterEach(async () => {
-    xo.call('vm.delete', {id: vmId, delete_disks: true})
-  })
-
-  // ----------------------------------------------------------------------
-
   afterAll(async () => {
+    await Promise.all(map(vmsToDelete, id => xo.call('vm.delete', {id, delete_disks: true}).catch(error => console.error(error))))
+    vmsToDelete.length = 0
+
     await xo.call('server.remove', {
       id: serverId
     })
@@ -37,27 +37,13 @@ describe('.create()', () => {
 
   // =================================================================
 
-  it('creates a VM with only a name and a template', async () => {
-    vmId = await xo.call('vm.create', {
-      name_label: 'vmTest',
-      template: config.templatesId.debian
-    })
-
-    const vm = await xo.getOrWaitObject(vmId)
-    expect(typeof vm.id).toBe('string')
-    expect(vm.name_label).toBe('vmTest')
-    expect(vm.other.base_template_name).toBe(config.templates.debian)
-    expect(vm.VIFs).toHaveLength(0)
-    expect(vm.$VBDs).toHaveLength(0)
-  })
-
   describe('create HVM', () => {
     beforeEach(async () => {
       jasmine.DEFAULT_TIMEOUT_INTERVAL = 50e3
     })
 
-    it('creates a VM with the Other Config template, three disks, two interfaces and no ISO mounted', async () => {
-      vmId = await xo.call('vm.create', {
+    it('creates a VM with the Other Config template, three disks, two interfaces', async () => {
+      const vmId = await xo.call('vm.create', {
         name_label: 'vmTest',
         template: config.templatesId.otherConfig,
         VIFs: [
@@ -85,27 +71,35 @@ describe('.create()', () => {
           }
         ]
       })
+      vmsToDelete.push(vmId)
 
-      const vm = await xo.getOrWaitObject(vmId)
-      expect(typeof vm.id).toBe('string')
-      expect(vm.name_label).toBe('vmTest')
-      expect(vm.other.base_template_name).toEqual(config.templates.otherConfig)
-      expect(vm.VIFs).toHaveLength(2)
-      expect(vm.$VBDs).toHaveLength(3)
+      await waitObjectState(xo, vmId, vm => {
+        expect(vm.type).toBe('VM')
+        expect(vm.virtualizationMode).toBe('hvm')
+        expect(typeof vm.id).toBe('string')
+        expect(vm.name_label).toBe('vmTest')
+        expect(vm.other.base_template_name).toEqual(config.templates.otherConfig)
+        expect(vm.VIFs).toHaveLength(2)
+        expect(vm.$VBDs).toHaveLength(3)
+      })
     })
 
-    it('creates a VM with the Other Config template, no disk, no network and no ISO mounted', async () => {
-      vmId = await xo.call('vm.create', {
+    it('creates a VM with the CentOS 7 template, no disk, no network', async () => {
+      const vmId = await xo.call('vm.create', {
         name_label: 'vmTest',
-        template: config.templatesId.otherConfig
+        template: config.templatesId.centOS
       })
+      vmsToDelete.push(vmId)
 
-      const vm = await xo.getOrWaitObject(vmId)
-      expect(typeof vm.id).toBe('string')
-      expect(vm.name_label).toBe('vmTest')
-      expect(vm.other.base_template_name).toEqual(config.templates.otherConfig)
-      expect(vm.VIFs).toHaveLength(0)
-      expect(vm.$VBDs).toHaveLength(0)
+      await waitObjectState(xo, vmId, vm => {
+        expect(vm.type).toBe('VM')
+        expect(vm.virtualizationMode).toBe('hvm')
+        expect(typeof vm.id).toBe('string')
+        expect(vm.name_label).toBe('vmTest')
+        expect(vm.other.base_template_name).toEqual(config.templates.centOS)
+        expect(vm.VIFs).toHaveLength(0)
+        expect(vm.$VBDs).toHaveLength(0)
+      })
     })
   })
 
@@ -114,8 +108,26 @@ describe('.create()', () => {
       jasmine.DEFAULT_TIMEOUT_INTERVAL = 50e3
     })
 
+    it('creates a VM with only a name and a template', async () => {
+      const vmId = await xo.call('vm.create', {
+        name_label: 'vmTest',
+        template: config.templatesId.debian
+      })
+      vmsToDelete.push(vmId)
+
+      await waitObjectState(xo, vmId, vm => {
+        expect(vm.type).toBe('VM')
+        expect(vm.virtualizationMode).toBe('pv')
+        expect(typeof vm.id).toBe('string')
+        expect(vm.name_label).toBe('vmTest')
+        expect(vm.other.base_template_name).toBe(config.templates.debian)
+        expect(vm.VIFs).toHaveLength(0)
+        expect(vm.$VBDs).toHaveLength(0)
+      })
+    })
+
     it('creates a VM with the Debian 7 64 bits template, network install, one disk, one network', async () => {
-      vmId = await xo.call('vm.create', {
+      const vmId = await xo.call('vm.create', {
         name_label: 'vmTest',
         template: config.templatesId.debian,
         VIFs: [{network: config.labPoolNetworkId}],
@@ -126,19 +138,23 @@ describe('.create()', () => {
           type: 'user'
         }]
       })
+      vmsToDelete.push(vmId)
 
-      const vm = await xo.getOrWaitObject(vmId)
-      expect(typeof vm.id).toBe('string')
-      expect(vm.name_label).toBe('vmTest')
-      expect(vm.other.base_template_name).toEqual(config.templates.debian)
-      expect(vm.VIFs).toHaveLength(1)
-      expect(vm.$VBDs).toHaveLength(1)
+      await waitObjectState(xo, vmId, vm => {
+        expect(vm.type).toBe('VM')
+        expect(vm.virtualizationMode).toBe('pv')
+        expect(typeof vm.id).toBe('string')
+        expect(vm.name_label).toBe('vmTest')
+        expect(vm.other.base_template_name).toEqual(config.templates.debian)
+        expect(vm.VIFs).toHaveLength(1)
+        expect(vm.$VBDs).toHaveLength(1)
+      })
     })
 
-    it('creates a VM with the CentOS 7 64 bits template, two disks, two networks and no ISO mounted', async () => {
-      vmId = await xo.call('vm.create', {
+    it('creates a VM with the Debian 7 64 bits template, two disks, two networks', async () => {
+      const vmId = await xo.call('vm.create', {
         name_label: 'vmTest',
-        template: config.templatesId.centOS,
+        template: config.templatesId.debian,
         VIFs: [
           {network: config.labPoolNetworkId},
           {network: config.labPoolNetworkId}
@@ -158,11 +174,14 @@ describe('.create()', () => {
           }
         ]
       })
+      vmsToDelete.push(vmId)
 
       await waitObjectState(xo, vmId, vm => {
+        expect(vm.type).toBe('VM')
+        expect(vm.virtualizationMode).toBe('pv')
         expect(typeof vm.id).toBe('string')
         expect(vm.name_label).toBe('vmTest')
-        expect(vm.other.base_template_name).toEqual(config.templates.centOS)
+        expect(vm.other.base_template_name).toEqual(config.templates.debian)
         expect(vm.VIFs).toHaveLength(2)
         expect(vm.$VBDs).toHaveLength(2)
       })
