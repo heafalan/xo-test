@@ -24,12 +24,13 @@ describe('.delete()', () => {
   // ----------------------------------------------------------------------
 
   beforeEach(async () => {
-    jasmine.DEFAULT_TIMEOUT_INTERVAL = 50e3
+    jasmine.DEFAULT_TIMEOUT_INTERVAL = 100e3
 
     vmId = await xo.call('vm.create', {
       name_label: 'vmTest',
       template: config.templatesId.debian
     })
+    await xo.getOrWaitObject(vmId)
   })
 
   // ----------------------------------------------------------------------

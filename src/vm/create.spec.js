@@ -109,7 +109,7 @@ describe('.create()', () => {
     })
   })
 
-  describe.only('create PV', () => {
+  describe('create PV', () => {
     beforeEach(async () => {
       jasmine.DEFAULT_TIMEOUT_INTERVAL = 50e3
     })
