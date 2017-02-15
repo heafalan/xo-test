@@ -20,6 +20,8 @@ async function getConfig () {
     xoServerUrl: 'localhost:9000',
     labPoolNetworkId: '887b96dc-1e24-b616-1523-9c5818c534eb',
     labPoolSrId: 'e6616eb6-d719-b7a3-95a8-73881b90c25e',
+    lab2Id: '9fca2a9e-17b4-47a9-9975-a098fb031e70',
+    lab4Id: '48454816-ddb3-4225-a8ac-ff88fbfc0a29',
     lab1: {
       host: '192.168.100.1',
       username: 'root',
