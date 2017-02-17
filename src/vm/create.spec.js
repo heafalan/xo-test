@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import eventToPromise from 'event-to-promise'
 import {
   map
 } from 'lodash'
@@ -15,33 +14,21 @@ import {
 
 describe('.create()', () => {
   const vmsToDelete = []
-  let serverId
 
   // ----------------------------------------------------------------------
 
-  beforeAll(async () => {
-    serverId = await xo.call('server.add', config.lab1)
-    await eventToPromise(xo.objects, 'finish')
+  beforeAll(() => {
+    jasmine.DEFAULT_TIMEOUT_INTERVAL = 50e3
   })
-
-  // ----------------------------------------------------------------------
 
   afterAll(async () => {
     await Promise.all(map(vmsToDelete, id => xo.call('vm.delete', {id, delete_disks: true}).catch(error => console.error(error))))
     vmsToDelete.length = 0
-
-    await xo.call('server.remove', {
-      id: serverId
-    })
   })
 
   // =================================================================
 
   describe('create HVM', () => {
-    beforeEach(async () => {
-      jasmine.DEFAULT_TIMEOUT_INTERVAL = 50e3
-    })
-
     it('creates a VM with the Other Config template, three disks, two interfaces', async () => {
       const vmId = await xo.call('vm.create', {
         name_label: 'vmTest',
@@ -104,10 +91,6 @@ describe('.create()', () => {
   })
 
   describe('create PV', () => {
-    beforeEach(async () => {
-      jasmine.DEFAULT_TIMEOUT_INTERVAL = 50e3
-    })
-
     it('creates a VM with only a name and a template', async () => {
       const vmId = await xo.call('vm.create', {
         name_label: 'vmTest',

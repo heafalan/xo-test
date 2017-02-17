@@ -1,7 +1,5 @@
 /* eslint-env jest */
 
-import eventToPromise from 'event-to-promise'
-
 import {
   config,
   waitObjectState,
@@ -11,35 +9,23 @@ import {
 // ===================================================================
 
 describe('.delete()', () => {
-  let serverId
   let vmId
 
   // ----------------------------------------------------------------------
 
   beforeAll(async () => {
-    serverId = await xo.call('server.add', config.lab1)
-    await eventToPromise(xo.objects, 'finish')
+    jasmine.DEFAULT_TIMEOUT_INTERVAL = 100e3
   })
 
   // ----------------------------------------------------------------------
 
   beforeEach(async () => {
-    jasmine.DEFAULT_TIMEOUT_INTERVAL = 100e3
-
     vmId = await xo.call('vm.create', {
       name_label: 'vmTest',
       template: config.templatesId.debian
     })
     await waitObjectState(xo, vmId, vm => {
       if (vm.type !== 'VM') throw new Error('retry')
-    })
-  })
-
-  // ----------------------------------------------------------------------
-
-  afterAll(async () => {
-    await xo.call('server.remove', {
-      id: serverId
     })
   })
 

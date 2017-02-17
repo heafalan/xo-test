@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
 import defer from 'golike-defer'
+import eventToPromise from 'event-to-promise'
 import {
   cloneDeep,
   find,
@@ -32,7 +33,8 @@ async function getConfig () {
       username: 'root',
       password: 'qwerty'
     },
-    isoId: '6db0fc7d-f1ca-495c-a338-09a57aa1e45b',
+    windowsIsoId: '6db0fc7d-f1ca-495c-a338-09a57aa1e45b',
+    ubuntuIsoId: 'ac8ce205-9229-4d17-bd35-8eeafe28a827',
     templates: {
       debian: 'Debian Wheezy 7.0 (64-bit)',
       otherConfig: 'Other install media',
@@ -41,7 +43,8 @@ async function getConfig () {
     templatesId: {
       debian: '4f4f3a4f-2529-6c0e-9404-717f6048796a',
       otherConfig: '5091f8d3-c9a8-2519-ece6-aa2d964e1884',
-      centOS: 'aa3f913a-15df-b20f-a858-f4d538020337'
+      centOS: 'aa3f913a-15df-b20f-a858-f4d538020337',
+      debianCloud: '4a5156a2-6f47-529d-4b5c-0cb205134f8a'
     }
   }
 }
@@ -111,13 +114,24 @@ export const testConnection = opts => getConnection(opts).then(connection => con
 
 export const rejectionOf = promise => promise.then(value => { throw value }, reason => reason)
 
+let serverId
+
 export let config
 export let xo
+
 beforeAll(async () => {
   config = await getConfig()
   xo = await getConnection()
+
+  serverId = await xo.call('server.add', config.lab1)
+  await eventToPromise(xo.objects, 'finish')
 })
+
 afterAll(async () => {
+  await xo.call('server.remove', {
+    id: serverId
+  })
+
   await xo.close()
   xo = null
 })
@@ -144,6 +158,25 @@ export async function deleteUsers (xo, userIds) {
     userIds,
     userId => xo.call('user.delete', {id: userId})
   ))
+}
+
+// ==================================================================
+
+export async function getOrWaitCdVbdPosition (vmId) {
+  let vbd
+  let find = false
+  await waitObjectState(xo, vmId, async vm => {
+    const $VBDsSize = vm.$VBDs.length
+    for (let i = 0; i < $VBDsSize; i++) {
+      vbd = await xo.getOrWaitObject(vm.$VBDs[i])
+      if (vbd.is_cd_drive === true) {
+        find = true
+        break
+      }
+    }
+    if (!find) throw new Error('retry')
+  })
+  return vbd.id
 }
 
 // ==================================================================
@@ -207,7 +240,7 @@ export function almostEqual (actual, expected, ignoredAttributes) {
     deepDelete(actual, ignoredAttribute.split('.'))
     deepDelete(expected, ignoredAttribute.split('.'))
   })
-  expect(actual).to.be.eql(expected)
+  expect(actual).toEqual(expected)
 }
 
 export async function waitObjectState (xo, id, predicate) {
