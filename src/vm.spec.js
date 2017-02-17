@@ -744,37 +744,6 @@ describe('vm', () => {
 
   // --------------------------------------------------------------------
 
-  describe('.clone()', () => {
-    beforeEach(async () => {
-      vmId = await createVmTest()
-    })
-    it('clones a VM', async () => {
-      const cloneId = await xo.call('vm.clone', {
-        id: vmId,
-        name: 'clone',
-        full_copy: true
-      })
-      // push cloneId in vmIds array to delete the VM after test
-      vmIds.push(cloneId)
-
-      const [vm, clone] = await Promise.all([
-        xo.getOrWaitObject(vmId),
-        xo.getOrWaitObject(cloneId)
-      ])
-      expect(clone.type).to.be.equal('VM')
-      expect(clone.name_label).to.be.equal('clone')
-
-      almostEqual(clone, vm, [
-        'name_label',
-        'ref',
-        'id',
-        'other.mac_seed'
-      ])
-    })
-  })
-
-  // --------------------------------------------------------------------
-
   describe('.convert()', () => {
     beforeEach(async () => {
       vmId = await createVmTest()
