@@ -69,7 +69,7 @@ describe('.delete()', () => {
       vdi: diskId
     })
 
-    await waitObjectState(xo, vmId, async vm => {
+    await waitObjectState(xo, vmId, vm => {
       if (vm.$VBDs.length !== 1) throw new Error('retry')
     })
     await xo.call('vm.delete', {id: vmId, delete_disks: true})
@@ -87,7 +87,7 @@ describe('.delete()', () => {
       force: false
     })
 
-    await waitObjectState(xo, vmId, async vm => {
+    await waitObjectState(xo, vmId, vm => {
       if (vm.$VBDs.length !== 1) throw new Error('retry')
     })
     await xo.call('vm.delete', {id: vmId, delete_disks: true})
