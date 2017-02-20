@@ -38,7 +38,8 @@ async function getConfig () {
     templates: {
       debian: 'Debian Wheezy 7.0 (64-bit)',
       otherConfig: 'Other install media',
-      centOS: 'CentOS 7'
+      centOS: 'CentOS 7',
+      debianCloud: 'Debian 8 Cloud Ready'
     },
     templatesId: {
       debian: '4f4f3a4f-2529-6c0e-9404-717f6048796a',

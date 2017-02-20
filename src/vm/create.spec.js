@@ -18,7 +18,7 @@ describe('.create()', () => {
   // ----------------------------------------------------------------------
 
   beforeAll(() => {
-    jasmine.DEFAULT_TIMEOUT_INTERVAL = 50e3
+    jasmine.DEFAULT_TIMEOUT_INTERVAL = 100e3
   })
 
   afterAll(async () => {
@@ -68,6 +68,7 @@ describe('.create()', () => {
         expect(vm.other.base_template_name).toEqual(config.templates.otherConfig)
         expect(vm.VIFs).toHaveLength(2)
         expect(vm.$VBDs).toHaveLength(3)
+        expect(vm.power_state).toBe('Halted')
       })
     })
 
@@ -86,6 +87,31 @@ describe('.create()', () => {
         expect(vm.other.base_template_name).toEqual(config.templates.centOS)
         expect(vm.VIFs).toHaveLength(0)
         expect(vm.$VBDs).toHaveLength(0)
+        expect(vm.power_state).toBe('Halted')
+      })
+    })
+
+    it('creates a VM with the Debian 8 Cloud Ready template which boot after its creation', async () => {
+      const vmId = await xo.call('vm.create', {
+        name_label: 'vmTest',
+        template: config.templatesId.debianCloud,
+        VIFs: [{network: config.labPoolNetworkId}],
+        VDIs: [{
+          device: '0',
+          size: 1,
+          SR: config.labPoolSrId,
+          type: 'user'
+        }],
+        bootAfterCreate: true
+      })
+      vmsToDelete.push(vmId)
+
+      await waitObjectState(xo, vmId, vm => {
+        expect(vm.type).toBe('VM')
+        expect(vm.virtualizationMode).toBe('hvm')
+        expect(typeof vm.id).toBe('string')
+        expect(vm.name_label).toBe('vmTest')
+        expect(vm.power_state).toBe('Running')
       })
     })
   })
@@ -106,6 +132,7 @@ describe('.create()', () => {
         expect(vm.other.base_template_name).toBe(config.templates.debian)
         expect(vm.VIFs).toHaveLength(0)
         expect(vm.$VBDs).toHaveLength(0)
+        expect(vm.power_state).toBe('Halted')
       })
     })
 
@@ -131,6 +158,7 @@ describe('.create()', () => {
         expect(vm.other.base_template_name).toEqual(config.templates.debian)
         expect(vm.VIFs).toHaveLength(1)
         expect(vm.$VBDs).toHaveLength(1)
+        expect(vm.power_state).toBe('Halted')
       })
     })
 
@@ -167,6 +195,7 @@ describe('.create()', () => {
         expect(vm.other.base_template_name).toEqual(config.templates.debian)
         expect(vm.VIFs).toHaveLength(2)
         expect(vm.$VBDs).toHaveLength(2)
+        expect(vm.power_state).toBe('Halted')
       })
     })
   })
