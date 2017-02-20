@@ -773,21 +773,6 @@ describe('vm', () => {
     })
   })
 
-  // --------------------------------------------------------------------
-
-  describe('.convert()', () => {
-    beforeEach(async () => {
-      vmId = await createVmTest()
-    })
-
-    it('converts a VM', async () => {
-      await xo.call('vm.convert', {id: vmId})
-      await waitObjectState(xo, vmId, vm => {
-        expect(vm.type).to.be.equal('VM-template')
-      })
-    })
-  })
-
   // ---------------------------------------------------------------------
 
   describe('.snapshot()', () => {
