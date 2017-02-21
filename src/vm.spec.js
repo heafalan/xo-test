@@ -1005,29 +1005,6 @@ describe('vm', () => {
   })
 
   // ---------------------------------------------------------------------
-
-  describe('.stats()', () => {
-    jasmine.DEFAULT_TIMEOUT_INTERVAL = 20e3
-    beforeAll(async () => {
-      vmId = await getVmXoTestPvId(xo)
-    })
-    beforeEach(async () => {
-      await xo.call('vm.start', {id: vmId})
-    })
-    afterEach(async () => {
-      await xo.call('vm.stop', {
-        id: vmId,
-        force: true
-      })
-    })
-
-    it('returns an array with statistics of the VM', async () => {
-      const stats = await xo.call('vm.stats', {id: vmId})
-      expect(stats).to.be.an.object()
-    })
-  })
-
-  // ---------------------------------------------------------------------
   describe('.bootOrder()', () => {
     it('')
   })
