@@ -46,7 +46,8 @@ async function getConfig () {
       otherConfig: '5091f8d3-c9a8-2519-ece6-aa2d964e1884',
       centOS: 'aa3f913a-15df-b20f-a858-f4d538020337',
       debianCloud: '4a5156a2-6f47-529d-4b5c-0cb205134f8a'
-    }
+    },
+    pciId: 'e9e809fb-0a60-6bc9-1701-005061a7412a'
   }
 }
 

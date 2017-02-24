@@ -35,7 +35,7 @@ describe('.delete()', () => {
     await xo.call('vm.delete', {id: vmId})
 
     await waitObjectState(xo, vmId, vm => {
-      expect(vm).toBeFalsy()
+      expect(vm).toBe(0)
     })
   })
 
@@ -51,7 +51,7 @@ describe('.delete()', () => {
     })
 
     await waitObjectState(xo, snapshotId, snapshot => {
-      expect(snapshot).toBeFalsy()
+      expect(snapshot).toBe(0)
     })
   })
 
@@ -75,7 +75,7 @@ describe('.delete()', () => {
     await xo.call('vm.delete', {id: vmId, delete_disks: true})
 
     await waitObjectState(xo, diskId, disk => {
-      expect(disk).toBeFalsy()
+      expect(disk).toBe(0)
     })
   })
 
