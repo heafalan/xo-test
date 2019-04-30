@@ -170,4 +170,107 @@ describe("backupNg", () => {
       expect(log.warnings).toMatchSnapshot();
     });
   });
+
+  test("execute three times a DR with 2 as retention", async () => {
+    jest.setTimeout(3e4);
+    const SR = await xo.getSrId();
+    const vmId = await xo.createTempVm({
+      name_label: "XO Test Temporary",
+      name_description:
+        "Creating a temporary vm to execute three times a DR & CR with 2 as retention",
+      template: config.xoTestTemplateId,
+      high_availability: "",
+      VDIs: [
+        {
+          device: "0",
+          size: 1,
+          SR,
+          type: "user",
+        },
+      ],
+    });
+
+    const scheduleTempId = randomId();
+    const srDeleteFirstTrue = config.srLocalStorage1;
+    const srDeleteFirstFalse = config.srLocalStorage2;
+    const { id: jobId } = await xo.createTempBackupNgJob({
+      ...defaultBackupNg,
+      remotes: {
+        id: {
+          __or: [],
+        },
+      },
+      schedules: {
+        [scheduleTempId]: {
+          name: "scheduleTest",
+          cron: "0 * * * * *",
+        },
+      },
+      settings: {
+        [srDeleteFirstTrue]: {
+          deleteFirst: true,
+        },
+        [srDeleteFirstFalse]: {
+          deleteFirst: false,
+        },
+        [scheduleTempId]: {
+          copyRetention: 2,
+        },
+        "": {
+          reportWhen: "Never",
+          fullInterval: 3,
+        },
+      },
+      srs: {
+        id: {
+          __or: [srDeleteFirstTrue, srDeleteFirstFalse],
+        },
+      },
+      vms: {
+        id: vmId,
+      },
+    });
+
+    const schedule = await xo.getSchedule({ jobId });
+    expect(typeof schedule).toBe("object");
+    await xo.call("backupNg.runJob", { id: jobId, schedule: schedule.id });
+    await xo.call("backupNg.runJob", { id: jobId, schedule: schedule.id });
+    await xo.call("backupNg.runJob", { id: jobId, schedule: schedule.id });
+
+    const replicatedVms = [];
+    for (const obj in xo.objects.all) {
+      if (xo.objects.all[obj].other) {
+        const {
+          "xo:backup:vm": backupVm,
+          "xo:backup:job": backupJob,
+          "xo:backup:schedule": backupSchedule,
+        } = xo.objects.all[obj].other;
+        if (
+          backupVm === vmId &&
+          backupJob === jobId &&
+          backupSchedule === schedule.id
+        ) {
+          replicatedVms.push(xo.objects.all[obj]);
+        }
+      }
+    }
+
+    const expected = [
+      xo.objects.all[vmId].name_label,
+      defaultBackupNg.name,
+      expect.stringMatching(/[A-Z0-9]*/),
+    ];
+
+    for (let i = 0; i < replicatedVms.length; i++) {
+      expect(replicatedVms[i].name_label.split(" - ")).toEqual(
+        expect.arrayContaining(expected)
+      );
+      expect(replicatedVms[i].tags).toMatchSnapshot();
+      expect(replicatedVms[i].high_availability).toBe("");
+      await expect(
+        xo.call("vm.start", { id: replicatedVms[i].id })
+      ).rejects.toMatchSnapshot();
+      await xo.call("vm.start", { id: replicatedVms[i].id, force: true });
+    }
+  });
 });

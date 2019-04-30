@@ -68,7 +68,7 @@ class XoConnection extends Xo {
   async connect($defer, credentials = config.adminCredentials) {
     await this.open();
     $defer.onFailure(() => this.close());
-    
+
     await this.signIn(credentials);
     await this._fetchObjects();
 
@@ -109,11 +109,46 @@ class XoConnection extends Xo {
     return job;
   }
 
+  async createTempVm(params) {
+    const id = await this.call("vm.create", params);
+    this._tempResourceDisposers.push("vm.delete", { id, delete_disks: true });
+    await this.waitObjectState(id, vm => {
+      if (vm.type !== "VM") throw new Error("retry");
+    });
+    return id;
+  }
+
+  async getSchedule(predicate) {
+    return find(await this.call("schedule.getAll"), predicate);
+  }
+
+  async getSrId() {
+    let host;
+    for (const objId in this.objects.all) {
+      if (this.objects.all[objId].type === "host") {
+        host = this.objects.all[objId];
+      }
+    }
+    if (!host) throw new Error("no hosts found");
+    const pool = await this.getOrWaitObject(host.$poolId);
+    return pool.default_SR;
+  }
+
   async deleteTempResources() {
     const disposers = this._tempResourceDisposers;
     for (let n = disposers.length - 1; n > 0; ) {
       const params = disposers[n--];
       const method = disposers[n--];
+      if (method === "vm.delete") {
+        for (const id in this.objects.all) {
+          if (this.objects.all[id].other) {
+            const { "xo:backup:vm": backupVm } = this.objects.all[id].other;
+            if (backupVm === params.id) {
+              await xo.call("vm.delete", { id, delete_disks: true });
+            }
+          }
+        }
+      }
       await this.call(method, params).catch(error => {
         console.warn("deleteTempResources", method, params, error);
       });

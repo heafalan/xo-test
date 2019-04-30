@@ -51,3 +51,35 @@ Array [
 `;
 
 exports[`backupNg .runJob() : fails trying to run a backup job without schedule 1`] = `[JsonRpcError: invalid parameters]`;
+
+exports[`backupNg execute three times a DR with 2 as retention 1`] = `
+Array [
+  "Disaster Recovery",
+]
+`;
+
+exports[`backupNg execute three times a DR with 2 as retention 2`] = `[JsonRpcError: forbidden operation: Start]`;
+
+exports[`backupNg execute three times a DR with 2 as retention 3`] = `
+Array [
+  "Disaster Recovery",
+]
+`;
+
+exports[`backupNg execute three times a DR with 2 as retention 4`] = `[JsonRpcError: forbidden operation: Start]`;
+
+exports[`backupNg execute three times a DR with 2 as retention 5`] = `
+Array [
+  "Disaster Recovery",
+]
+`;
+
+exports[`backupNg execute three times a DR with 2 as retention 6`] = `[JsonRpcError: forbidden operation: Start]`;
+
+exports[`backupNg execute three times a DR with 2 as retention 7`] = `
+Array [
+  "Disaster Recovery",
+]
+`;
+
+exports[`backupNg execute three times a DR with 2 as retention 8`] = `[JsonRpcError: forbidden operation: Start]`;
