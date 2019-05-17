@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { keyBy, omit } from "lodash";
+import { keyBy } from "lodash";
 
 import xo, {
   testConnection,
@@ -34,9 +34,11 @@ describe("user", () => {
         },
       },
       async data => {
-        const userId = await xo.createUser(data);
+        const userId = await xo.createTempUser(data);
         expect(typeof userId).toBe("string");
-        expect(omit(await xo.getUser(userId), "id")).toMatchSnapshot();
+        expect(await xo.getUser(userId)).toMatchSnapshot({
+          id: expect.any(String),
+        });
         await testConnection({
           credentials: {
             email: data.email,
@@ -54,13 +56,13 @@ describe("user", () => {
         },
       },
       async data => {
-        await expect(xo.createUser(data)).rejects.toMatchSnapshot();
+        await expect(xo.createTempUser(data)).rejects.toMatchSnapshot();
       }
     );
 
     it("fails trying to create a user with an email already used", async () => {
-      await xo.createUser(SIMPLE_USER);
-      await expect(xo.createUser(SIMPLE_USER)).rejects.toMatchSnapshot();
+      await xo.createTempUser(SIMPLE_USER);
+      await expect(xo.createTempUser(SIMPLE_USER)).rejects.toMatchSnapshot();
     });
   });
 
@@ -72,7 +74,7 @@ describe("user", () => {
       };
       const newPassword = "newpwd";
 
-      await xo.createUser(user);
+      await xo.createTempUser(user);
       await testWithOtherConnection(user, xo =>
         expect(
           xo.call("user.changePassword", {
@@ -110,7 +112,7 @@ describe("user", () => {
         },
       },
       async data => {
-        await xo.createUser(SIMPLE_USER);
+        await xo.createTempUser(SIMPLE_USER);
         await testWithOtherConnection(SIMPLE_USER, xo =>
           expect(xo.call("user.changePassword", data)).rejects.toMatchSnapshot()
         );
@@ -120,12 +122,12 @@ describe("user", () => {
 
   describe(".getAll() :", () => {
     it("gets all the users created", async () => {
-      const userId1 = await xo.createUser({
+      const userId1 = await xo.createTempUser({
         email: "wayne4@vates.fr",
         password: "batman",
         permission: "user",
       });
-      const userId2 = await xo.createUser({
+      const userId2 = await xo.createTempUser({
         email: "wayne5@vates.fr",
         password: "batman",
         permission: "user",
@@ -133,10 +135,8 @@ describe("user", () => {
       let users = await xo.call("user.getAll");
       expect(Array.isArray(users)).toBe(true);
       users = keyBy(users, "id");
-      expect([
-        omit(users[userId1], "id"),
-        omit(users[userId2], "id"),
-      ]).toMatchSnapshot();
+      expect(users[userId1]).toMatchSnapshot({ id: expect.any(String) });
+      expect(users[userId2]).toMatchSnapshot({ id: expect.any(String) });
     });
   });
 
@@ -157,9 +157,11 @@ describe("user", () => {
         },
       },
       async data => {
-        data.id = await xo.createUser(SIMPLE_USER);
+        data.id = await xo.createTempUser(SIMPLE_USER);
         expect(await xo.call("user.set", data)).toBe(true);
-        expect(omit(await xo.getUser(data.id), "id")).toMatchSnapshot();
+        expect(await xo.getUser(data.id)).toMatchSnapshot({
+          id: expect.any(String),
+        });
 
         await testConnection({
           credentials: {
@@ -186,11 +188,11 @@ describe("user", () => {
         },
       },
       async data => {
-        data.id = await xo.createUser({
+        data.id = await xo.createTempUser({
           email: "wayne8@vates.fr",
           password: "batman8",
         });
-        await xo.createUser(SIMPLE_USER);
+        await xo.createTempUser(SIMPLE_USER);
 
         await testWithOtherConnection(SIMPLE_USER, xo =>
           expect(xo.call("user.set", data)).rejects.toMatchSnapshot()
@@ -208,7 +210,7 @@ describe("user", () => {
         },
       },
       async data => {
-        const id = await xo.createUser(data);
+        const id = await xo.createTempUser(data);
         const { email, password } = data;
         await testWithOtherConnection({ email, password }, xo =>
           expect(
@@ -228,8 +230,8 @@ describe("user", () => {
     });
 
     it.skip("fails trying to set an email already used", async () => {
-      await xo.createUser(SIMPLE_USER);
-      const userId2 = await xo.createUser({
+      await xo.createTempUser(SIMPLE_USER);
+      const userId2 = await xo.createTempUser({
         email: "wayne6@vates.fr",
         password: "batman",
       });
@@ -257,7 +259,7 @@ describe("user", () => {
     });
 
     it("fails trying to delete itself", async () => {
-      const id = await xo.createUser(ADMIN_USER);
+      const id = await xo.createTempUser(ADMIN_USER);
       const { email, password } = ADMIN_USER;
       await testWithOtherConnection({ email, password }, xo =>
         expect(xo.call("user.delete", { id })).rejects.toMatchSnapshot()
