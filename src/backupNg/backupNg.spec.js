@@ -7,6 +7,11 @@ import config from "../_config";
 import randomId from "../_randomId";
 import xo from "../_xoConnection";
 
+const defaultSchedule = {
+  name: "scheduleTest",
+  cron: "0 * * * * *",
+};
+
 describe("backupNg", () => {
   let defaultBackupNg;
 
@@ -235,7 +240,6 @@ describe("backupNg", () => {
 
   test("execute three times a DR with 2 as retention", async () => {
     jest.setTimeout(3e4);
-    const SR = await xo.getSrId();
     const vmId = await xo.createTempVm({
       name_label: "XO Test Temporary",
       name_description:
@@ -244,17 +248,16 @@ describe("backupNg", () => {
       high_availability: "",
       VDIs: [
         {
-          device: "0",
           size: 1,
-          SR,
+          SR: config.srs.defaultSr,
           type: "user",
         },
       ],
     });
 
     const scheduleTempId = randomId();
-    const srDeleteFirstTrue = config.srLocalStorage1;
-    const srDeleteFirstFalse = config.srLocalStorage2;
+    const srDeleteFirstTrue = config.srs.srLocalStorage1;
+    const srDeleteFirstFalse = config.srs.srLocalStorage2;
     const { id: jobId } = await xo.createTempBackupNgJob({
       ...defaultBackupNg,
       remotes: {
@@ -263,10 +266,7 @@ describe("backupNg", () => {
         },
       },
       schedules: {
-        [scheduleTempId]: {
-          name: "scheduleTest",
-          cron: "0 * * * * *",
-        },
+        [scheduleTempId]: defaultSchedule,
       },
       settings: {
         [srDeleteFirstTrue]: {
@@ -279,7 +279,7 @@ describe("backupNg", () => {
           copyRetention: 2,
         },
         "": {
-          reportWhen: "Never",
+          reportWhen: "never",
           fullInterval: 3,
         },
       },
@@ -295,9 +295,9 @@ describe("backupNg", () => {
 
     const schedule = await xo.getSchedule({ jobId });
     expect(typeof schedule).toBe("object");
-    await xo.call("backupNg.runJob", { id: jobId, schedule: schedule.id });
-    await xo.call("backupNg.runJob", { id: jobId, schedule: schedule.id });
-    await xo.call("backupNg.runJob", { id: jobId, schedule: schedule.id });
+    for (let i = 0; i < 3; i++) {
+      await xo.call("backupNg.runJob", { id: jobId, schedule: schedule.id });
+    }
 
     const replicatedVms = [];
     for (const obj in xo.objects.all) {
@@ -317,16 +317,12 @@ describe("backupNg", () => {
       }
     }
 
-    const expected = [
-      xo.objects.all[vmId].name_label,
-      defaultBackupNg.name,
-      expect.stringMatching(/[A-Z0-9]*/),
-    ];
-
     for (let i = 0; i < replicatedVms.length; i++) {
-      expect(replicatedVms[i].name_label.split(" - ")).toEqual(
-        expect.arrayContaining(expected)
-      );
+      expect(replicatedVms[i].name_label.split(" - ")).toEqual([
+        xo.objects.all[vmId].name_label,
+        defaultBackupNg.name,
+        expect.stringMatching(/[A-Z0-9]*/),
+      ]);
       expect(replicatedVms[i].tags).toMatchSnapshot();
       expect(replicatedVms[i].high_availability).toBe("");
       await expect(
