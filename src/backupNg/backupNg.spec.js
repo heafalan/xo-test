@@ -5,7 +5,7 @@ import { noSuchObject } from "xo-common/api-errors";
 
 import config from "../_config";
 import randomId from "../_randomId";
-import xo from "../_xoConnection";
+import xo, { withData } from "../_xoConnection";
 
 const defaultSchedule = {
   name: "scheduleTest",
@@ -238,97 +238,95 @@ describe("backupNg", () => {
     });
   });
 
-  test("execute three times a DR with 2 as retention", async () => {
-    jest.setTimeout(3e4);
-    const vmId = await xo.createTempVm({
-      name_label: "XO Test Temporary",
-      name_description:
-        "Creating a temporary vm to execute three times a DR & CR with 2 as retention",
-      template: config.xoTestTemplateId,
-      high_availability: "",
-      VDIs: [
-        {
-          size: 1,
-          SR: config.srs.defaultSr,
-          type: "user",
+  withData(
+    {
+      "execute three times a DR with 2 as retention": {},
+      "execute three times a CR with 2 as retention and 3 as fullInterval": {
+        mode: "delta",
+        settings: {
+          "": {
+            reportWhen: "never",
+            fullInterval: 3,
+          },
         },
-      ],
-    });
+      },
+    },
+    async data => {
+      jest.setTimeout(5e4);
+      const vmId = await xo.createTempVm({
+        name_label: "XO Test Temporary",
+        name_description:
+          "Creating a temporary vm to execute three times a DR/CR with 2 as retention",
+        template: config.xoTestTemplateId,
+        high_availability: "",
+        VDIs: [
+          {
+            size: 1,
+            SR: config.srs.defaultSr,
+            type: "user",
+          },
+        ],
+      });
 
-    const scheduleTempId = randomId();
-    const srDeleteFirstTrue = config.srs.srLocalStorage1;
-    const srDeleteFirstFalse = config.srs.srLocalStorage2;
-    const { id: jobId } = await xo.createTempBackupNgJob({
-      ...defaultBackupNg,
-      remotes: {
-        id: {
-          __or: [],
+      const scheduleTempId = randomId();
+      const { id: jobId } = await xo.createTempBackupNgJob({
+        ...defaultBackupNg,
+        mode: data.mode ? data.mode : defaultBackupNg.mode,
+        remotes: {
+          id: {
+            __or: [],
+          },
         },
-      },
-      schedules: {
-        [scheduleTempId]: defaultSchedule,
-      },
-      settings: {
-        [srDeleteFirstTrue]: {
-          deleteFirst: true,
+        schedules: {
+          [scheduleTempId]: defaultSchedule,
         },
-        [srDeleteFirstFalse]: {
-          deleteFirst: false,
+        settings: {
+          ...(data.settings ? data.settings : defaultBackupNg.settings),
+          [config.srs.srLocalStorage1]: {
+            deleteFirst: true,
+          },
+          [config.srs.srLocalStorage2]: {
+            deleteFirst: false,
+          },
+          [scheduleTempId]: {
+            copyRetention: 2,
+          },
         },
-        [scheduleTempId]: {
-          copyRetention: 2,
+        srs: {
+          id: {
+            __or: [config.srs.srLocalStorage1, config.srs.srLocalStorage2],
+          },
         },
-        "": {
-          reportWhen: "never",
-          fullInterval: 3,
+        vms: {
+          id: vmId,
         },
-      },
-      srs: {
-        id: {
-          __or: [srDeleteFirstTrue, srDeleteFirstFalse],
-        },
-      },
-      vms: {
-        id: vmId,
-      },
-    });
+      });
 
-    const schedule = await xo.getSchedule({ jobId });
-    expect(typeof schedule).toBe("object");
-    for (let i = 0; i < 3; i++) {
-      await xo.call("backupNg.runJob", { id: jobId, schedule: schedule.id });
-    }
+      const schedule = await xo.getSchedule({ jobId });
+      expect(typeof schedule).toBe("object");
 
-    const replicatedVms = [];
-    for (const obj in xo.objects.all) {
-      if (xo.objects.all[obj].other) {
-        const {
-          "xo:backup:vm": backupVm,
-          "xo:backup:job": backupJob,
-          "xo:backup:schedule": backupSchedule,
-        } = xo.objects.all[obj].other;
-        if (
-          backupVm === vmId &&
-          backupJob === jobId &&
-          backupSchedule === schedule.id
-        ) {
-          replicatedVms.push(xo.objects.all[obj]);
-        }
+      // TODO: test on 'deleteFirst' & check delta in case of CR.
+      for (let i = 0; i < 3; i++) {
+        await xo.call("backupNg.runJob", { id: jobId, schedule: schedule.id });
+      }
+
+      const replicatedVms = xo.getReplicatedVms(vmId, jobId, schedule.id);
+      // Test on retention, there must be 2 replicated vms per sr (2).
+      expect(replicatedVms.length).toBe(4);
+
+      for (let i = 0; i < replicatedVms.length; i++) {
+        expect(replicatedVms[i].name_label.split(" - ")).toEqual([
+          xo.objects.all[vmId].name_label,
+          defaultBackupNg.name,
+          expect.stringMatching(/[A-Z0-9]*/),
+        ]);
+        expect(replicatedVms[i].tags).toMatchSnapshot();
+        expect(replicatedVms[i].high_availability).toBe("");
+        await expect(
+          xo.call("vm.start", { id: replicatedVms[i].id })
+        ).rejects.toMatchSnapshot();
+        await xo.call("vm.start", { id: replicatedVms[i].id, force: true });
       }
     }
-
-    for (let i = 0; i < replicatedVms.length; i++) {
-      expect(replicatedVms[i].name_label.split(" - ")).toEqual([
-        xo.objects.all[vmId].name_label,
-        defaultBackupNg.name,
-        expect.stringMatching(/[A-Z0-9]*/),
-      ]);
-      expect(replicatedVms[i].tags).toMatchSnapshot();
-      expect(replicatedVms[i].high_availability).toBe("");
-      await expect(
-        xo.call("vm.start", { id: replicatedVms[i].id })
-      ).rejects.toMatchSnapshot();
-      await xo.call("vm.start", { id: replicatedVms[i].id, force: true });
-    }
-  });
+  );
 });

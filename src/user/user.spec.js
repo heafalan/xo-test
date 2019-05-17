@@ -1,8 +1,12 @@
 /* eslint-env jest */
 
-import { forOwn, keyBy, omit } from "lodash";
+import { keyBy, omit } from "lodash";
 
-import xo, { testConnection, testWithOtherConnection } from "../_xoConnection";
+import xo, {
+  testConnection,
+  testWithOtherConnection,
+  withData,
+} from "../_xoConnection";
 
 const SIMPLE_USER = {
   email: "wayne3@vates.fr",
@@ -14,11 +18,6 @@ const ADMIN_USER = {
   password: "admin",
   permission: "admin",
 };
-
-const withData = (data, fn) =>
-  forOwn(data, (data, title) => {
-    it(title, () => fn(data));
-  });
 
 describe("user", () => {
   describe(".create() :", () => {

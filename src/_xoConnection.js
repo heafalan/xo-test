@@ -36,6 +36,29 @@ class XoConnection extends Xo {
     return this._objects;
   }
 
+  getReplicatedVms(vmId, jobId, scheduleId) {
+    const replicatedVms = [];
+    for (const obj in this.objects.all) {
+      if (this.objects.all[obj].other) {
+        const {
+          "xo:backup:sr": backupSr,
+          "xo:backup:vm": backupVm,
+          "xo:backup:job": backupJob,
+          "xo:backup:schedule": backupSchedule,
+        } = this.objects.all[obj].other;
+        if (
+          backupVm === vmId &&
+          backupJob === jobId &&
+          backupSchedule === scheduleId &&
+          backupSr
+        ) {
+          replicatedVms.push(this.objects.all[obj]);
+        }
+      }
+    }
+    return replicatedVms;
+  }
+
   async _fetchObjects() {
     const { _objects: objects, _watchers: watchers } = this;
     forOwn(await this.call("xo.getAllObjects"), (object, id) => {
@@ -122,18 +145,6 @@ class XoConnection extends Xo {
     return find(await this.call("schedule.getAll"), predicate);
   }
 
-  async getSrId() {
-    let host;
-    for (const objId in this.objects.all) {
-      if (this.objects.all[objId].type === "host") {
-        host = this.objects.all[objId];
-      }
-    }
-    if (!host) throw new Error("no hosts found");
-    const pool = await this.getOrWaitObject(host.$poolId);
-    return pool.default_SR;
-  }
-
   async deleteTempResources() {
     const disposers = this._tempResourceDisposers;
     for (let n = disposers.length - 1; n > 0; ) {
@@ -184,3 +195,8 @@ export const testWithOtherConnection = defer(
     await functionToExecute(xoUser);
   }
 );
+
+export const withData = (data, fn) =>
+  forOwn(data, (data, title) => {
+    it(title, () => fn(data));
+  });
