@@ -86,6 +86,7 @@ describe("user", () => {
   * `createTempBackupNgJob(params)`  
   * `createTempVm(params)`  
   * `getSchedule(predicate)`  
+  * `getReplicatedVms(vmId, jobId, scheduleId)`  
 
 ## Usage
 

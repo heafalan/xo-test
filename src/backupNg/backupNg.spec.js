@@ -7,7 +7,7 @@ import config from "../_config";
 import randomId from "../_randomId";
 import xo, { withData } from "../_xoConnection";
 
-const defaultSchedule = {
+const DEFAULT_SCHEDULE = {
   name: "scheduleTest",
   cron: "0 * * * * *",
 };
@@ -288,7 +288,7 @@ describe("backupNg", () => {
           },
         },
         schedules: {
-          [scheduleTempId]: defaultSchedule,
+          [scheduleTempId]: DEFAULT_SCHEDULE,
         },
         settings: {
           ...(data.settings ? data.settings : defaultBackupNg.settings),
@@ -315,10 +315,33 @@ describe("backupNg", () => {
       const schedule = await xo.getSchedule({ jobId });
       expect(typeof schedule).toBe("object");
 
-      // TODO: test on 'deleteFirst' & check delta in case of CR.
-      for (let i = 0; i < 3; i++) {
-        await xo.call("backupNg.runJob", { id: jobId, schedule: schedule.id });
+      // TODO: test on 'deleteFirst'
+      await xo.call("backupNg.runJob", { id: jobId, schedule: schedule.id });
+      await xo.call("backupNg.runJob", { id: jobId, schedule: schedule.id });
+
+      if (data.mode === "delta") {
+        let isDelta = false;
+        for (const obj in xo.objects.all) {
+          if (xo.objects.all[obj].other) {
+            const {
+              "xo:backup:job": backupJob,
+              "xo:backup:schedule": backupSchedule,
+              "xo:backup:deltaChainLength": backupDelta,
+            } = xo.objects.all[obj].other;
+            if (
+              backupJob === jobId &&
+              backupSchedule === schedule.id &&
+              backupDelta
+            ) {
+              isDelta = true;
+              break;
+            }
+          }
+        }
+        expect(isDelta).toBe(true);
       }
+
+      await xo.call("backupNg.runJob", { id: jobId, schedule: schedule.id });
 
       const replicatedVms = xo.getReplicatedVms(vmId, jobId, schedule.id);
       // Test on retention, there must be 2 replicated vms per sr (2).
