@@ -167,7 +167,7 @@ Object {
 }
 `;
 
-exports[`backupNg .runJob() : runs backup job with srs with exportRetention 1`] = `
+exports[`backupNg .runJob() : runs backup job with srs and exportRetention 1`] = `
 Object {
   "data": Object {
     "mode": "full",
@@ -184,7 +184,7 @@ Object {
 }
 `;
 
-exports[`backupNg .runJob() : runs backup job with srs with exportRetention 2`] = `
+exports[`backupNg .runJob() : runs backup job with srs and exportRetention 2`] = `
 Object {
   "data": Object {
     "id": Any<String>,
@@ -198,7 +198,7 @@ Object {
 }
 `;
 
-exports[`backupNg .runJob() : runs backup job with srs with exportRetention 3`] = `
+exports[`backupNg .runJob() : runs backup job with srs and exportRetention 3`] = `
 Object {
   "end": Any<Number>,
   "id": Any<String>,
@@ -211,7 +211,7 @@ Object {
 }
 `;
 
-exports[`backupNg .runJob() : runs backup job with srs with exportRetention 4`] = `
+exports[`backupNg .runJob() : runs backup job with srs and exportRetention 4`] = `
 Object {
   "data": Object {
     "id": Any<String>,

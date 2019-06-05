@@ -330,7 +330,7 @@ describe("backupNg", () => {
       expect(task.data.id).toBe(config.vmIdXoTest);
     });
 
-    it("runs backup job with srs with exportRetention", async () => {
+    it("runs backup job with srs and exportRetention", async () => {
       jest.setTimeout(6e4);
       const scheduleTempId = randomId();
       const { id: jobId } = await xo.createTempBackupNgJob({
@@ -340,7 +340,7 @@ describe("backupNg", () => {
         },
         settings: {
           ...defaultBackupNg.settings,
-          [scheduleTempId]: { copyRetention: 1 },
+          [scheduleTempId]: { exportRetention: 1 },
         },
         srs: {
           id: config.srs.defaultSr,
