@@ -329,6 +329,78 @@ describe("backupNg", () => {
       });
       expect(task.data.id).toBe(config.vmIdXoTest);
     });
+
+    it("runs backup job with srs with exportRetention", async () => {
+      jest.setTimeout(6e4);
+      const scheduleTempId = randomId();
+      const { id: jobId } = await xo.createTempBackupNgJob({
+        ...defaultBackupNg,
+        schedules: {
+          [scheduleTempId]: DEFAULT_SCHEDULE,
+        },
+        settings: {
+          ...defaultBackupNg.settings,
+          [scheduleTempId]: { copyRetention: 1 },
+        },
+        srs: {
+          id: config.srs.defaultSr,
+        },
+      });
+
+      const schedule = await xo.getSchedule({ jobId });
+      expect(typeof schedule).toBe("object");
+      await xo.call("backupNg.runJob", { id: jobId, schedule: schedule.id });
+
+      const [
+        {
+          tasks: [{ tasks: subTasks, ...vmTask }],
+          ...log
+        },
+      ] = await xo.call("backupNg.getLogs", {
+        jobId,
+        scheduleId: schedule.id,
+      });
+
+      expect(log).toMatchSnapshot({
+        end: expect.any(Number),
+        id: expect.any(String),
+        jobId: expect.any(String),
+        scheduleId: expect.any(String),
+        start: expect.any(Number),
+      });
+
+      const {
+        tasks: [tasks],
+        ...subTaskExport
+      } = subTasks.find(({ message }) => message === "export");
+      expect(subTaskExport).toMatchSnapshot({
+        data: {
+          id: expect.any(String),
+        },
+        end: expect.any(Number),
+        id: expect.any(String),
+        start: expect.any(Number),
+      });
+      expect(tasks).toMatchSnapshot({
+        end: expect.any(Number),
+        id: expect.any(String),
+        result: {
+          size: expect.any(Number),
+        },
+        start: expect.any(Number),
+      });
+
+      expect(vmTask).toMatchSnapshot({
+        data: {
+          id: expect.any(String),
+        },
+        end: expect.any(Number),
+        id: expect.any(String),
+        message: expect.any(String),
+        start: expect.any(Number),
+      });
+      expect(vmTask.data.id).toBe(config.vmIdXoTest);
+    });
   });
 
   test("execute three times a rolling snapshot with 2 as retention & revert to an old state", async () => {
