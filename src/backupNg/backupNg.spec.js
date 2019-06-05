@@ -277,7 +277,7 @@ describe("backupNg", () => {
       expect(task.data.id).toBe(config.vmIdXoTest);
     });
 
-    it("fails trying to run backup job with srs without copyRetention", async () => {
+    it("fails trying to run backup job with copyRetention without srs", async () => {
       const scheduleTempId = randomId();
       const { id: jobId } = await xo.createTempBackupNgJob({
         ...defaultBackupNg,
@@ -286,10 +286,7 @@ describe("backupNg", () => {
         },
         settings: {
           ...defaultBackupNg.settings,
-          [scheduleTempId]: {},
-        },
-        srs: {
-          id: config.srs.defaultSr,
+          [scheduleTempId]: { copyRetention: 1 },
         },
       });
 
