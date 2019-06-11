@@ -95,66 +95,34 @@ Array [
 
 exports[`backupNg .runJob() : fails trying to run a backup job without schedule 1`] = `[JsonRpcError: invalid parameters]`;
 
-exports[`backupNg execute three times a CR with 2 as retention and 3 as fullInterval 1`] = `
-Array [
-  "Continuous Replication",
-]
-`;
-
-exports[`backupNg execute three times a CR with 2 as retention and 3 as fullInterval 2`] = `[JsonRpcError: forbidden operation: Start]`;
-
-exports[`backupNg execute three times a CR with 2 as retention and 3 as fullInterval 3`] = `
-Array [
-  "Continuous Replication",
-]
-`;
-
-exports[`backupNg execute three times a CR with 2 as retention and 3 as fullInterval 4`] = `[JsonRpcError: forbidden operation: Start]`;
-
-exports[`backupNg execute three times a CR with 2 as retention and 3 as fullInterval 5`] = `
-Array [
-  "Continuous Replication",
-]
-`;
-
-exports[`backupNg execute three times a CR with 2 as retention and 3 as fullInterval 6`] = `[JsonRpcError: forbidden operation: Start]`;
-
-exports[`backupNg execute three times a CR with 2 as retention and 3 as fullInterval 7`] = `
-Array [
-  "Continuous Replication",
-]
-`;
-
-exports[`backupNg execute three times a CR with 2 as retention and 3 as fullInterval 8`] = `[JsonRpcError: forbidden operation: Start]`;
-
-exports[`backupNg execute three times a DR with 2 as retention 1`] = `
+exports[`backupNg execute three times a DR with 2 as retention and exportRetention 1`] = `
 Array [
   "Disaster Recovery",
 ]
 `;
 
-exports[`backupNg execute three times a DR with 2 as retention 2`] = `[JsonRpcError: forbidden operation: Start]`;
+exports[`backupNg execute three times a DR with 2 as retention and exportRetention 2`] = `[JsonRpcError: forbidden operation: Start]`;
 
-exports[`backupNg execute three times a DR with 2 as retention 3`] = `
+exports[`backupNg execute three times a DR with 2 as retention and exportRetention 3`] = `
 Array [
   "Disaster Recovery",
 ]
 `;
 
-exports[`backupNg execute three times a DR with 2 as retention 4`] = `[JsonRpcError: forbidden operation: Start]`;
+exports[`backupNg execute three times a DR with 2 as retention and exportRetention 4`] = `[JsonRpcError: forbidden operation: Start]`;
 
-exports[`backupNg execute three times a DR with 2 as retention 5`] = `
+exports[`backupNg execute three times a DR with 2 as retention and exportRetention 5`] = `
 Array [
   "Disaster Recovery",
 ]
 `;
 
-exports[`backupNg execute three times a DR with 2 as retention 6`] = `[JsonRpcError: forbidden operation: Start]`;
+exports[`backupNg execute three times a DR with 2 as retention and exportRetention 6`] = `[JsonRpcError: forbidden operation: Start]`;
 
-exports[`backupNg execute three times a DR with 2 as retention 7`] = `
+exports[`backupNg execute three times a DR with 2 as retention and exportRetention 7`] = `
 Array [
   "Disaster Recovery",
 ]
 `;
 
-exports[`backupNg execute three times a DR with 2 as retention 8`] = `[JsonRpcError: forbidden operation: Start]`;
+exports[`backupNg execute three times a DR with 2 as retention and exportRetention 8`] = `[JsonRpcError: forbidden operation: Start]`;

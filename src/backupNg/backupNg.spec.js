@@ -250,8 +250,8 @@ describe("backupNg", () => {
 
   withData(
     {
-      "execute three times a DR with 2 as retention": {},
-      "execute three times a CR with 2 as retention and 3 as fullInterval": {
+      "execute three times a DR with 2 as retention and exportRetention": {},
+      "execute three times a CR with 2 as retention, 3 as fullInterval and copyRetention": {
         mode: "delta",
         settings: {
           "": {
@@ -262,7 +262,7 @@ describe("backupNg", () => {
       },
     },
     async data => {
-      jest.setTimeout(5e4);
+      jest.setTimeout(8e4);
       const vmId = await xo.createTempVm({
         name_label: "XO Test Temporary",
         name_description:
@@ -298,9 +298,9 @@ describe("backupNg", () => {
           [config.srs.srLocalStorage2]: {
             deleteFirst: false,
           },
-          [scheduleTempId]: {
-            copyRetention: 2,
-          },
+          [scheduleTempId]: data.mode
+            ? { copyRetention: 2 }
+            : { exportRetention: 2 },
         },
         srs: {
           id: {
@@ -315,7 +315,7 @@ describe("backupNg", () => {
       const schedule = await xo.getSchedule({ jobId });
       expect(typeof schedule).toBe("object");
 
-      // TODO: test on 'deleteFirst'
+      // TODO: test on 'deleteFirst' (missing disks with data)
       await xo.call("backupNg.runJob", { id: jobId, schedule: schedule.id });
       await xo.call("backupNg.runJob", { id: jobId, schedule: schedule.id });
 
