@@ -20,10 +20,12 @@ otherConfig = 'Other install media'
 centOS = 'CentOS 7'
 
 [remotes]
-defaultRemote = '8565fc53-ea32-40ea-b380-dd1b8f3b5d44'
+defaultRemote1 = '8565fc53-ea32-40ea-b380-dd1b8f3b5d44'
+defaultRemote2 = '606ec797-dc74-4042-8cb5-828b66e684f8'
 
 [srs]
 defaultSr = 'a5954951-3dfa-42b8-803f-4bc270b22a0b'
+srLocalStorage = 'ff33495d-68c4-0aa7-193a-229c261390b8'
 
 [slaveServer]
 host = '192.168.100.1'

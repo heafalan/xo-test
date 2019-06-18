@@ -377,4 +377,193 @@ describe("backupNg", () => {
     });
     expect(vmTask.data.id).toBe(vmId);
   });
+
+  test("execute three times a rolling snapshot, a delta backup and a CR, revert to an old state & restore the backups", async () => {
+    jest.setTimeout(8e4);
+    const vmId = await xo.createTempVm({
+      name_label: "XO Test Temp",
+      name_description: "Creating a temporary vm",
+      template: config.xoTestTemplateId,
+      VDIs: [
+        {
+          size: 1,
+          SR: config.srs.defaultSr,
+          type: "user",
+        },
+      ],
+    });
+
+    const scheduleTempId = randomId();
+    const { id: jobId } = await xo.createTempBackupNgJob({
+      ...defaultBackupNg,
+      mode: "delta",
+      vms: {
+        id: vmId,
+      },
+      remotes: {
+        id: {
+          __or: [config.remotes.defaultRemote1, config.remotes.defaultRemote2],
+        },
+      },
+      schedules: {
+        [scheduleTempId]: DEFAULT_SCHEDULE,
+      },
+      settings: {
+        "": {
+          reportWhen: "never",
+          fullInterval: 3,
+        },
+        [config.remotes.defaultRemote1]: {
+          deleteFirst: true,
+        },
+        [config.remotes.defaultRemote2]: {
+          deleteFirst: false,
+        },
+        [scheduleTempId]: {
+          snapshotRetention: 2,
+          exportRetention: 2,
+          copyRetention: 2,
+        },
+      },
+      srs: {
+        id: {
+          __or: [config.srs.srLocalStorage],
+        },
+      },
+    });
+
+    const schedule = await xo.getSchedule({ jobId });
+    expect(typeof schedule).toBe("object");
+    for (let i = 0; i < 3; i++) {
+      const oldSnapshots = xo.objects.all[vmId].snapshots;
+      await xo.call("backupNg.runJob", { id: jobId, schedule: schedule.id });
+      await xo.waitObjectState(vmId, async ({ snapshots }) => {
+        // Test on updating snapshots.
+        expect(snapshots).not.toEqual(oldSnapshots);
+      });
+
+      const [
+        {
+          tasks: [{ tasks: subTasks }],
+        },
+      ] = await xo.call("backupNg.getLogs", {
+        jobId,
+        scheduleId: schedule.id,
+      });
+
+      const subTaskExport = [];
+      subTasks.forEach(({ message, tasks }) => {
+        if (message === "export") {
+          subTaskExport.push(tasks);
+        }
+      });
+
+      // Test `deleteFirst = true` for the first remote "defaultRemote1"
+      expect(subTaskExport[0][0].message).toBe("merge");
+      expect(subTaskExport[0][1].message).toBe("transfer");
+
+      // Test `deleteFirst = false` for the second remote "defaultRemote2"
+      expect(subTaskExport[1][0].message).toBe("transfer");
+      expect(subTaskExport[1][1].message).toBe("merge");
+    }
+
+    // Test on rolling snapshot.
+    const [
+      {
+        tasks: [{ tasks: subTasks, ...vmTask }],
+        ...log
+      },
+    ] = await xo.call("backupNg.getLogs", {
+      jobId,
+      scheduleId: schedule.id,
+    });
+
+    expect(log).toMatchSnapshot({
+      end: expect.any(Number),
+      id: expect.any(String),
+      jobId: expect.any(String),
+      scheduleId: expect.any(String),
+      start: expect.any(Number),
+    });
+
+    const subTaskSnapshot = subTasks.find(
+      ({ message }) => message === "snapshot"
+    );
+    expect(subTaskSnapshot).toMatchSnapshot({
+      end: expect.any(Number),
+      id: expect.any(String),
+      result: expect.any(String),
+      start: expect.any(Number),
+    });
+
+    expect(vmTask).toMatchSnapshot({
+      data: {
+        id: expect.any(String),
+      },
+      end: expect.any(Number),
+      id: expect.any(String),
+      message: expect.any(String),
+      start: expect.any(Number),
+    });
+    expect(vmTask.data.id).toBe(vmId);
+
+    const { snapshots } = xo.objects.all[vmId];
+    // Test on the retention, how many snapshots should be saved.
+    expect(snapshots.length).toBe(2);
+
+    // Tests on delta backup and continuous replication.
+    let counterReplicatedVms = 0;
+    let counterExportedVms = 0;
+    for (const obj in xo.objects.all) {
+      if (xo.objects.all[obj].other) {
+        const {
+          "xo:backup:sr": backupSr,
+          "xo:backup:exported": backupRemote,
+          "xo:backup:deltaChainLength": backupDelta,
+          "xo:backup:vm": backupVm,
+          "xo:backup:job": backupJob,
+          "xo:backup:schedule": backupSchedule,
+        } = xo.objects.all[obj].other;
+        if (
+          // continuous replication
+          backupSr === config.srs.srLocalStorage &&
+          backupVm === vmId &&
+          backupJob === jobId &&
+          backupSchedule === schedule.id
+        ) {
+          const {
+            high_availability: ha,
+            name_label: nameLabel,
+            tags,
+          } = xo.objects.all[obj];
+          expect(nameLabel.split(" - ")).toEqual([
+            xo.objects.all[vmId].name_label,
+            defaultBackupNg.name,
+            expect.stringMatching(/[A-Z0-9]*/),
+          ]);
+          expect(tags).toMatchSnapshot();
+          expect(ha).toBe("");
+          await expect(
+            xo.call("vm.start", { id: obj })
+          ).rejects.toMatchSnapshot();
+          await xo.call("vm.start", { id: obj, force: true });
+          counterReplicatedVms++;
+        } else if (
+          // delta backup
+          backupDelta &&
+          backupRemote &&
+          backupJob === jobId &&
+          backupSchedule === schedule.id &&
+          backupVm === vmId
+        ) {
+          expect(xo.objects.all[obj].high_availability).toBe("");
+          counterExportedVms++;
+        }
+      }
+    }
+
+    // Test on the retention, how many replicated vms and exported vms should be saved.
+    expect(counterReplicatedVms).toBe(2);
+    expect(counterExportedVms).toBe(2);
+  });
 });

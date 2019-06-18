@@ -172,3 +172,61 @@ Object {
   "status": "success",
 }
 `;
+
+exports[`backupNg execute three times a rolling snapshot, a delta backup and a CR, revert to an old state & restore the backups 1`] = `
+Object {
+  "data": Object {
+    "mode": "delta",
+    "reportWhen": "never",
+  },
+  "end": Any<Number>,
+  "id": Any<String>,
+  "jobId": Any<String>,
+  "jobName": "default-backupNg",
+  "message": "backup",
+  "scheduleId": Any<String>,
+  "start": Any<Number>,
+  "status": "success",
+}
+`;
+
+exports[`backupNg execute three times a rolling snapshot, a delta backup and a CR, revert to an old state & restore the backups 2`] = `
+Object {
+  "end": Any<Number>,
+  "id": Any<String>,
+  "message": "snapshot",
+  "result": Any<String>,
+  "start": Any<Number>,
+  "status": "success",
+}
+`;
+
+exports[`backupNg execute three times a rolling snapshot, a delta backup and a CR, revert to an old state & restore the backups 3`] = `
+Object {
+  "data": Object {
+    "id": Any<String>,
+    "type": "VM",
+  },
+  "end": Any<Number>,
+  "id": Any<String>,
+  "message": Any<String>,
+  "start": Any<Number>,
+  "status": "success",
+}
+`;
+
+exports[`backupNg execute three times a rolling snapshot, a delta backup and a CR, revert to an old state & restore the backups 4`] = `
+Array [
+  "Continuous Replication",
+]
+`;
+
+exports[`backupNg execute three times a rolling snapshot, a delta backup and a CR, revert to an old state & restore the backups 5`] = `[JsonRpcError: forbidden operation: Start]`;
+
+exports[`backupNg execute three times a rolling snapshot, a delta backup and a CR, revert to an old state & restore the backups 6`] = `
+Array [
+  "Continuous Replication",
+]
+`;
+
+exports[`backupNg execute three times a rolling snapshot, a delta backup and a CR, revert to an old state & restore the backups 7`] = `[JsonRpcError: forbidden operation: Start]`;

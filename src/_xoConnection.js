@@ -111,7 +111,7 @@ class XoConnection extends Xo {
 
   async createTempVm(params) {
     const id = await this.call("vm.create", params);
-    this._tempResourceDisposers.push("vm.delete", { id });
+    this._tempResourceDisposers.push("vm.delete", { id, delete_disks: true });
     await this.waitObjectState(id, vm => {
       if (vm.type !== "VM") throw new Error("retry");
     });
@@ -127,6 +127,16 @@ class XoConnection extends Xo {
     for (let n = disposers.length - 1; n > 0; ) {
       const params = disposers[n--];
       const method = disposers[n--];
+      if (method === "vm.delete") {
+        for (const id in this.objects.all) {
+          if (this.objects.all[id].other) {
+            const { "xo:backup:vm": backupVm } = this.objects.all[id].other;
+            if (backupVm === params.id) {
+              await xo.call("vm.delete", { id, delete_disks: true });
+            }
+          }
+        }
+      }
       await this.call(method, params).catch(error => {
         console.warn("deleteTempResources", method, params, error);
       });
