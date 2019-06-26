@@ -114,6 +114,12 @@ class XoConnection extends Xo {
     return job;
   }
 
+  async createTempRemote(params) {
+    const { id } = await this.call("remote.create", params);
+    this._tempResourceDisposers.push("remote.delete", { id });
+    return id;
+  }
+
   async createTempVm(params) {
     const id = await this.call("vm.create", params);
     this._tempResourceDisposers.push("vm.delete", { id });
@@ -121,6 +127,37 @@ class XoConnection extends Xo {
       if (vm.type !== "VM") throw new Error("retry");
     });
     return id;
+  }
+
+  async runBackupJob(
+    jobId,
+    { exportRetention, copyRetention },
+    schedule,
+    numberOfExecution
+  ) {
+    for (let i = 0; i < numberOfExecution; i++) {
+      await xo.call("backupNg.runJob", { id: jobId, schedule });
+    }
+    if (exportRetention || copyRetention) {
+      for (const id in this.objects.all) {
+        if (this.objects.all[id].other) {
+          const {
+            "xo:backup:job": backupJob,
+            "xo:backup:schedule": backupSchedule,
+          } = this.objects.all[id].other;
+          if (backupJob === jobId && backupSchedule === schedule) {
+            this._tempResourceDisposers.push("vm.delete", {
+              id,
+              delete_disks: true,
+            });
+          }
+        }
+      }
+    }
+    return this.call("backupNg.getLogs", {
+      jobId,
+      scheduleId: schedule.id,
+    });
   }
 
   async getSchedule(predicate) {
