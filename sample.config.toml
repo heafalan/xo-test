@@ -1,0 +1,19 @@
+[xoConnection]
+  url = ''
+  email = ''
+  password = ''
+
+[vms]
+  default = ''
+
+[templates]
+  default = ''
+
+[remotes]
+  default = ''
+  # some tests need informations to create a temporary smb and/or a temporary nfs.
+  nfs = { name = '', url = '' }
+  smb = { name = '', url = '' }
+
+[srs]
+  default = ''
