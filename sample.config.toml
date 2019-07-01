@@ -11,7 +11,7 @@
 
 [remotes]
   default = ''
-  # some tests need informations to create a temporary smb and/or a temporary nfs.
+  # some tests need informations to create a temporary nfs and/or a temporary smb.
   nfs = { name = '', url = '' }
   smb = { name = '', url = '' }
 

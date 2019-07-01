@@ -386,7 +386,7 @@ describe("backupNg", () => {
   });
 
   test("execute three times a delta backup with 2 remotes, 2 as retention, 2 as fullInterval", async () => {
-    jest.setTimeout(4e4);
+    jest.setTimeout(6e4);
     const nfsRemoteId = await xo.createTempRemote(config.remotes.nfs);
     const smbRemoteId = await xo.createTempRemote(config.remotes.smb);
 

@@ -146,10 +146,7 @@ class XoConnection extends Xo {
             "xo:backup:schedule": backupSchedule,
           } = this.objects.all[id].other;
           if (backupJob === jobId && backupSchedule === schedule) {
-            this._tempResourceDisposers.push("vm.delete", {
-              id,
-              delete_disks: true,
-            });
+            this._tempResourceDisposers.push("vm.delete", { id });
           }
         }
       }
