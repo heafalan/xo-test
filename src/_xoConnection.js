@@ -114,6 +114,12 @@ class XoConnection extends Xo {
     return job;
   }
 
+  async createTempRemote(params) {
+    const { id } = await this.call("remote.create", params);
+    this._tempResourceDisposers.push("remote.delete", { id });
+    return id;
+  }
+
   async createTempVm(params) {
     const id = await this.call("vm.create", params);
     this._tempResourceDisposers.push("vm.delete", { id });

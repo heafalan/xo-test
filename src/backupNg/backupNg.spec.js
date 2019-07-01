@@ -229,11 +229,12 @@ describe("backupNg", () => {
     });
 
     it("fails trying to run backup job without retentions", async () => {
+      const defaultRemote = await xo.createTempRemote(config.remotes.default);
       const scheduleTempId = randomId();
       const { id: jobId } = await xo.createTempBackupNgJob({
         ...defaultBackupNg,
         remotes: {
-          id: config.remotes.default,
+          id: defaultRemote,
         },
         schedules: {
           [scheduleTempId]: DEFAULT_SCHEDULE,

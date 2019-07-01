@@ -10,7 +10,9 @@
   default = ''
 
 [remotes]
-  default = ''
+  default = { name = '', url = '' }
+  nfs = { name = '', url = '' }
+  smb = { name = '', url = '' }
 
 [srs]
   default = ''
