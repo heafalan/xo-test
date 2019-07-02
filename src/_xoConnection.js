@@ -19,6 +19,7 @@ class XoConnection extends Xo {
     const watchers = (this._watchers = {});
     this._tempResourceDisposers = [];
     this._resourcesForAllTests = [];
+    this.defaultRemote = "";
 
     this.on("notification", ({ method, params }) => {
       if (method !== "all") {
