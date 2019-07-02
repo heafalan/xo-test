@@ -18,6 +18,7 @@ class XoConnection extends Xo {
     const objects = (this._objects = new XoCollection());
     const watchers = (this._watchers = {});
     this._tempResourceDisposers = [];
+    this._resourcesForAllTests = [];
 
     this.on("notification", ({ method, params }) => {
       if (method !== "all") {
@@ -114,9 +115,9 @@ class XoConnection extends Xo {
     return job;
   }
 
-  async createTempRemote(params) {
+  async createRemote(params) {
     const { id } = await this.call("remote.create", params);
-    this._tempResourceDisposers.push("remote.delete", { id });
+    this._resourcesForAllTests.push("remote.delete", { id });
     return id;
   }
 
@@ -133,13 +134,12 @@ class XoConnection extends Xo {
     return find(await this.call("schedule.getAll"), predicate);
   }
 
-  async deleteTempResources() {
-    const disposers = this._tempResourceDisposers;
+  async deleteResources(disposers) {
     for (let n = disposers.length - 1; n > 0; ) {
       const params = disposers[n--];
       const method = disposers[n--];
       await this.call(method, params).catch(error => {
-        console.warn("deleteTempResources", method, params, error);
+        console.warn("delete resources", method, params, error);
       });
     }
     disposers.length = 0;
@@ -154,12 +154,14 @@ const getConnection = credentials => {
 let xo;
 beforeAll(async () => {
   xo = await getConnection();
+  xo.defaultRemote = await xo.createRemote(config.remotes.default);
 });
 afterAll(async () => {
+  await xo.deleteResources(xo._resourcesForAllTests);
   await xo.close();
   xo = null;
 });
-afterEach(() => xo.deleteTempResources());
+afterEach(() => xo.deleteResources(xo._tempResourceDisposers));
 
 export { xo as default };
 
