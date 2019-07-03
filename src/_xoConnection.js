@@ -18,8 +18,7 @@ class XoConnection extends Xo {
     const objects = (this._objects = new XoCollection());
     const watchers = (this._watchers = {});
     this._tempResourceDisposers = [];
-    this._resourcesForAllTests = [];
-    this.defaultRemote = "";
+    this._durableResourceDisposers = [];
 
     this.on("notification", ({ method, params }) => {
       if (method !== "all") {
@@ -116,10 +115,10 @@ class XoConnection extends Xo {
     return job;
   }
 
-  async createRemote(params) {
-    const { id } = await this.call("remote.create", params);
-    this._resourcesForAllTests.push("remote.delete", { id });
-    return id;
+  async createDurableResources() {
+    const { id } = await this.call("remote.create", config.remotes.default);
+    this._durableResourceDisposers.push("remote.delete", { id });
+    return { remotes: { default: id } };
   }
 
   async createTempVm(params) {
@@ -135,7 +134,7 @@ class XoConnection extends Xo {
     return find(await this.call("schedule.getAll"), predicate);
   }
 
-  async deleteResources(disposers) {
+  async _cleanDisposers(disposers) {
     for (let n = disposers.length - 1; n > 0; ) {
       const params = disposers[n--];
       const method = disposers[n--];
@@ -145,6 +144,14 @@ class XoConnection extends Xo {
     }
     disposers.length = 0;
   }
+
+  async deleteTempResources() {
+    await this._cleanDisposers(this._tempResourceDisposers);
+  }
+
+  async deleteDurableResources() {
+    await this._cleanDisposers(this._durableResourceDisposers);
+  }
 }
 
 const getConnection = credentials => {
@@ -153,18 +160,19 @@ const getConnection = credentials => {
 };
 
 let xo;
+let resources;
 beforeAll(async () => {
   xo = await getConnection();
-  xo.defaultRemote = await xo.createRemote(config.remotes.default);
+  resources = await xo.createDurableResources();
 });
 afterAll(async () => {
-  await xo.deleteResources(xo._resourcesForAllTests);
+  await xo.deleteDurableResources();
   await xo.close();
   xo = null;
 });
-afterEach(() => xo.deleteResources(xo._tempResourceDisposers));
+afterEach(() => xo.deleteTempResources());
 
-export { xo as default };
+export { xo as default, resources };
 
 export const testConnection = ({ credentials }) =>
   getConnection(credentials).then(connection => connection.close());
