@@ -186,7 +186,7 @@ let xo;
 let resources;
 beforeAll(async () => {
   xo = await getConnection();
-  resources = await xo.createDurableResources(config.neededResources);
+  resources = await xo.createDurableResources(config.preCreatedResources);
 });
 afterAll(async () => {
   await xo.deleteDurableResources();
