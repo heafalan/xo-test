@@ -9,8 +9,10 @@
 [templates]
   default = ''
 
-[remotes]
-  default = { name = '', url = '' }
-
 [srs]
   default = ''
+
+# resources created before all tests and deleted at the end.
+[neededResources]
+  [neededResources.remotes]
+    default = { name = '', url = '' }

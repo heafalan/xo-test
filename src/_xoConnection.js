@@ -6,6 +6,13 @@ import { find, forOwn } from "lodash";
 
 import config from "./_config";
 
+const METHOD = {
+  remotes: {
+    create: "remote.create",
+    delete: "remote.delete",
+  },
+};
+
 const getDefaultCredentials = () => {
   const { email, password } = config.xoConnection;
   return { email, password };
@@ -115,12 +122,6 @@ class XoConnection extends Xo {
     return job;
   }
 
-  async createDurableResources() {
-    const { id } = await this.call("remote.create", config.remotes.default);
-    this._durableResourceDisposers.push("remote.delete", { id });
-    return { remotes: { default: id } };
-  }
-
   async createTempVm(params) {
     const id = await this.call("vm.create", params);
     this._tempResourceDisposers.push("vm.delete", { id });
@@ -128,6 +129,28 @@ class XoConnection extends Xo {
       if (vm.type !== "VM") throw new Error("retry");
     });
     return id;
+  }
+
+  async createResources(resourcesToCreate, disposer) {
+    const resources = {};
+    for (const typeOfResources in resourcesToCreate) {
+      for (const resource in resourcesToCreate[typeOfResources]) {
+        const { id } = await this.call(
+          METHOD[typeOfResources].create,
+          resourcesToCreate[typeOfResources][resource]
+        );
+        disposer.push(METHOD[typeOfResources].delete, { id });
+        resources[typeOfResources] = {
+          ...resources[typeOfResources],
+          [resource]: id,
+        };
+      }
+    }
+    return resources;
+  }
+
+  async createDurableResources(resources) {
+    return this.createResources(resources, this._durableResourceDisposers);
   }
 
   async getSchedule(predicate) {
@@ -139,7 +162,7 @@ class XoConnection extends Xo {
       const params = disposers[n--];
       const method = disposers[n--];
       await this.call(method, params).catch(error => {
-        console.warn("delete resources", method, params, error);
+        console.warn("_cleanDisposers", method, params, error);
       });
     }
     disposers.length = 0;
@@ -163,7 +186,7 @@ let xo;
 let resources;
 beforeAll(async () => {
   xo = await getConnection();
-  resources = await xo.createDurableResources();
+  resources = await xo.createDurableResources(config.neededResources);
 });
 afterAll(async () => {
   await xo.deleteDurableResources();
