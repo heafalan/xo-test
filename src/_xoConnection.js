@@ -142,17 +142,10 @@ class XoConnection extends Xo {
       for (const resource in resourcesToCreate[typeOfResources]) {
         const { create, delete: deleteResource } = METHOD[typeOfResources];
 
-        let creationParams;
-        if (create.params) {
-          creationParams = {
-            ...create.params,
-            ...resourcesToCreate[typeOfResources][resource],
-          };
-        }
-        const result = await this.call(
-          create.method,
-          creationParams || resourcesToCreate[typeOfResources][resource]
-        );
+        const result = await this.call(create.method, {
+          ...create.params,
+          ...resourcesToCreate[typeOfResources][resource],
+        });
 
         let deletionParams;
         if (deleteResource.params) {
