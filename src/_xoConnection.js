@@ -131,7 +131,7 @@ class XoConnection extends Xo {
     return id;
   }
 
-  async createResources() {
+  async createRequiredResources() {
     const resources = {};
     const resourcesToCreate = config.preCreatedResources;
     for (const typeOfResources in resourcesToCreate) {
