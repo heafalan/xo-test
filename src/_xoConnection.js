@@ -136,10 +136,6 @@ class XoConnection extends Xo {
     return id;
   }
 
-  // todo: we must have choice for the method (add a property) CHECKED (I think x)
-  // todo: the call result is not always an object CHECKED
-  // todo: the id is not always the delete params CHECKED
-  // todo: put in the `resources` the result call and not only the id CHECKED
   async createResources(resourcesToCreate) {
     const resources = {};
     for (const typeOfResources in resourcesToCreate) {
