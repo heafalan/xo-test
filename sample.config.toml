@@ -15,6 +15,4 @@
 # resources created before all tests and deleted at the end.
 [preCreatedResources]
   [preCreatedResources.remotes]
-    [preCreatedResources.remotes.default]
-      name = ''
-      url = ''
+    default = { name = '', url = '' }

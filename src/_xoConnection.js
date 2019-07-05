@@ -6,15 +6,10 @@ import { find, forOwn } from "lodash";
 
 import config from "./_config";
 
-const METHOD = {
+const ARGS_BY_TYPE = {
   remotes: {
-    create: {
-      method: "remote.create",
-    },
-    delete: {
-      method: "remote.delete",
-      params: { id: "" },
-    },
+    getCreationArgs: conf => ["remote.create", conf],
+    getDeletionArgs: res => ["remote.delete", { id: res.id }],
   },
 };
 
@@ -136,30 +131,21 @@ class XoConnection extends Xo {
     return id;
   }
 
-  async createResources(resourcesToCreate) {
+  async createResources() {
     const resources = {};
+    const resourcesToCreate = config.preCreatedResources;
     for (const typeOfResources in resourcesToCreate) {
+      const { getCreationArgs, getDeletionArgs } = ARGS_BY_TYPE[
+        typeOfResources
+      ];
       for (const resource in resourcesToCreate[typeOfResources]) {
-        const { create, delete: deleteResource } = METHOD[typeOfResources];
-
-        const result = await this.call(create.method, {
-          ...create.params,
+        const [creationMethod, creationParams] = getCreationArgs({
           ...resourcesToCreate[typeOfResources][resource],
         });
+        const result = await this.call(creationMethod, creationParams);
 
-        let deletionParams;
-        if (deleteResource.params) {
-          for (const param in deleteResource.params) {
-            if (result[param]) {
-              deletionParams = { ...deletionParams, [param]: result[param] };
-            }
-          }
-        }
-
-        this._durableResourceDisposers.push(
-          deleteResource.method,
-          deletionParams
-        );
+        const [deletionMethod, deletionParams] = getDeletionArgs(result);
+        this._durableResourceDisposers.push(deletionMethod, deletionParams);
         resources[typeOfResources] = {
           ...resources[typeOfResources],
           [resource]: result,
@@ -202,7 +188,7 @@ let xo;
 let resources;
 beforeAll(async () => {
   xo = await getConnection();
-  resources = await xo.createResources(config.preCreatedResources);
+  resources = await xo.createResources();
 });
 afterAll(async () => {
   await xo.deleteDurableResources();
