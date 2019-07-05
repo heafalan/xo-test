@@ -8,8 +8,13 @@ import config from "./_config";
 
 const METHOD = {
   remotes: {
-    create: "remote.create",
-    delete: "remote.delete",
+    create: {
+      method: "remote.create",
+    },
+    delete: {
+      method: "remote.delete",
+      params: { id: "" },
+    },
   },
 };
 
@@ -131,26 +136,48 @@ class XoConnection extends Xo {
     return id;
   }
 
-  async createResources(resourcesToCreate, disposer) {
+  // todo: we must have choice for the method (add a property) CHECKED (I think x)
+  // todo: the call result is not always an object CHECKED
+  // todo: the id is not always the delete params CHECKED
+  // todo: put in the `resources` the result call and not only the id CHECKED
+  async createResources(resourcesToCreate) {
     const resources = {};
     for (const typeOfResources in resourcesToCreate) {
       for (const resource in resourcesToCreate[typeOfResources]) {
-        const { id } = await this.call(
-          METHOD[typeOfResources].create,
-          resourcesToCreate[typeOfResources][resource]
+        const { create, delete: deleteResource } = METHOD[typeOfResources];
+
+        let creationParams;
+        if (create.params) {
+          creationParams = {
+            ...create.params,
+            ...resourcesToCreate[typeOfResources][resource],
+          };
+        }
+        const result = await this.call(
+          create.method,
+          creationParams || resourcesToCreate[typeOfResources][resource]
         );
-        disposer.push(METHOD[typeOfResources].delete, { id });
+
+        let deletionParams;
+        if (deleteResource.params) {
+          for (const param in deleteResource.params) {
+            if (result[param]) {
+              deletionParams = { ...deletionParams, [param]: result[param] };
+            }
+          }
+        }
+
+        this._durableResourceDisposers.push(
+          deleteResource.method,
+          deletionParams
+        );
         resources[typeOfResources] = {
           ...resources[typeOfResources],
-          [resource]: id,
+          [resource]: result,
         };
       }
     }
     return resources;
-  }
-
-  async createDurableResources(resources) {
-    return this.createResources(resources, this._durableResourceDisposers);
   }
 
   async getSchedule(predicate) {
@@ -186,7 +213,7 @@ let xo;
 let resources;
 beforeAll(async () => {
   xo = await getConnection();
-  resources = await xo.createDurableResources(config.preCreatedResources);
+  resources = await xo.createResources(config.preCreatedResources);
 });
 afterAll(async () => {
   await xo.deleteDurableResources();

@@ -233,7 +233,7 @@ describe("backupNg", () => {
       const { id: jobId } = await xo.createTempBackupNgJob({
         ...defaultBackupNg,
         remotes: {
-          id: resources.remotes.default,
+          id: resources.remotes.default.id,
         },
         schedules: {
           [scheduleTempId]: DEFAULT_SCHEDULE,
