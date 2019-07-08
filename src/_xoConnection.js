@@ -132,27 +132,23 @@ class XoConnection extends Xo {
   }
 
   async createRequiredResources() {
-    const resources = {};
+    const resourcesRequiredCreated = {};
     const resourcesToCreate = config.preCreatedResources;
     for (const typeOfResources in resourcesToCreate) {
       const { getCreationArgs, getDeletionArgs } = ARGS_BY_TYPE[
         typeOfResources
       ];
-      for (const resource in resourcesToCreate[typeOfResources]) {
-        const [creationMethod, creationParams] = getCreationArgs(
-          ...[resourcesToCreate[typeOfResources][resource]]
-        );
-        const result = await this.call(creationMethod, creationParams);
-
-        const [deletionMethod, deletionParams] = getDeletionArgs(result);
-        this._durableResourceDisposers.push(deletionMethod, deletionParams);
-        resources[typeOfResources] = {
-          ...resources[typeOfResources],
+      const resources = resourcesToCreate[typeOfResources];
+      for (const resource in resources) {
+        const result = await this.call(...getCreationArgs(resources[resource]));
+        this._durableResourceDisposers.push(...getDeletionArgs(result));
+        resourcesRequiredCreated[typeOfResources] = {
+          ...resourcesRequiredCreated[typeOfResources],
           [resource]: result,
         };
       }
     }
-    return resources;
+    return resourcesRequiredCreated;
   }
 
   async getSchedule(predicate) {
