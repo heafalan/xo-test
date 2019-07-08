@@ -387,8 +387,8 @@ describe("backupNg", () => {
 
   test("execute three times a delta backup with 2 remotes, 2 as retention, 2 as fullInterval", async () => {
     jest.setTimeout(6e4);
-    const nfsRemoteId = await xo.createTempRemote(config.remotes.nfs);
-    const smbRemoteId = await xo.createTempRemote(config.remotes.smb);
+    const nfsId = await xo.createTempRemote(config.remotes.nfs);
+    const smbId = await xo.createTempRemote(config.remotes.smb);
 
     const vmId = await xo.createTempVm({
       name_label: "XO Test Temp",
@@ -407,11 +407,6 @@ describe("backupNg", () => {
     const { id: jobId, settings } = await xo.createTempBackupNgJob({
       ...defaultBackupNg,
       mode: "delta",
-      remotes: {
-        id: {
-          __or: [smbRemoteId, nfsRemoteId],
-        },
-      },
       schedules: {
         [scheduleTempId]: DEFAULT_SCHEDULE,
       },
@@ -420,7 +415,7 @@ describe("backupNg", () => {
           reportWhen: "never",
           fullInterval: 2,
         },
-        [nfsRemoteId]: { deleteFirst: true },
+        [nfsId]: { deleteFirst: true },
         [scheduleTempId]: { exportRetention: 2 },
       },
       vms: {
@@ -431,22 +426,31 @@ describe("backupNg", () => {
     const schedule = await xo.getSchedule({ jobId });
     expect(typeof schedule).toBe("object");
 
-    let testOnNfsAndSmb = true;
-    await xo.call("remote.test", { id: smbRemoteId }).then(
-      () => console.log("backupNg job will be run on a nfs and a smb"),
-      async () => {
-        console.log("backupNg job will be run only on a nfs");
-        await xo.call("backupNg.editJob", {
-          id: jobId,
-          remotes: {
-            id: {
-              __or: [nfsRemoteId],
-            },
-          },
-        });
-        testOnNfsAndSmb = false;
+    const operationalRemote = [];
+    let testOnNfs = true;
+    await xo.call("remote.test", { id: nfsId }).then(
+      () => operationalRemote.push(nfsId),
+      () => {
+        testOnNfs = false;
       }
     );
+
+    let testOnSmb = false;
+    await xo.call("remote.test", { id: smbId }).then(
+      () => operationalRemote.push(smbId),
+      () => {
+        testOnSmb = false;
+      }
+    );
+
+    await xo.call("backupNg.editJob", {
+      id: jobId,
+      remotes: {
+        id: {
+          __or: operationalRemote,
+        },
+      },
+    });
 
     const numberOfExecution = 3;
     const backupLogs = await xo.runBackupJob(
@@ -482,38 +486,40 @@ describe("backupNg", () => {
         if (task.message === "export") exportTasks.push(task);
       });
 
-      const exportTasksOnNfs = exportTasks.find(
-        ({ data: { id } }) => id === nfsRemoteId
-      );
+      if (testOnNfs) {
+        const exportTasksOnNfs = exportTasks.find(
+          ({ data: { id } }) => id === nfsId
+        );
 
-      const {
-        data: dataOnNfs,
-        tasks: subTasksOnNfs,
-        ...exportSubTasksOnNfs
-      } = exportTasksOnNfs;
-      expect(dataOnNfs).toEqual({
-        id: nfsRemoteId,
-        isFull: expectedIsFull,
-        type: "remote",
-      });
+        const {
+          data: dataOnNfs,
+          tasks: subTasksOnNfs,
+          ...exportSubTasksOnNfs
+        } = exportTasksOnNfs;
+        expect(dataOnNfs).toEqual({
+          id: nfsId,
+          isFull: expectedIsFull,
+          type: "remote",
+        });
 
-      // deleteFirst=true
-      expect(subTasksOnNfs[0].message).toBe("merge");
-      expect(subTasksOnNfs[0].status).toBe("success");
-      expect(subTasksOnNfs[1].message).toBe("transfer");
-      expect(subTasksOnNfs[1].status).toBe("success");
+        // deleteFirst=true
+        expect(subTasksOnNfs[0].message).toBe("merge");
+        expect(subTasksOnNfs[0].status).toBe("success");
+        expect(subTasksOnNfs[1].message).toBe("transfer");
+        expect(subTasksOnNfs[1].status).toBe("success");
 
-      expect(exportSubTasksOnNfs).toEqual({
-        end: expect.any(Number),
-        id: expect.any(String),
-        message: "export",
-        start: expect.any(Number),
-        status: "success",
-      });
+        expect(exportSubTasksOnNfs).toEqual({
+          end: expect.any(Number),
+          id: expect.any(String),
+          message: "export",
+          start: expect.any(Number),
+          status: "success",
+        });
+      }
 
-      if (testOnNfsAndSmb) {
+      if (testOnSmb) {
         const exportTasksOnSmb = exportTasks.find(
-          ({ data: { id } }) => id === smbRemoteId
+          ({ data: { id } }) => id === smbId
         );
 
         const {
@@ -522,7 +528,7 @@ describe("backupNg", () => {
           ...exportSubTasksOnSmb
         } = exportTasksOnSmb;
         expect(dataOnSmb).toEqual({
-          id: smbRemoteId,
+          id: smbId,
           isFull: expectedIsFull,
           type: "remote",
         });
@@ -553,14 +559,16 @@ describe("backupNg", () => {
     testOnExportLogs(backupLogs[2], true);
 
     // test on retention
-    const {
-      [nfsRemoteId]: { [vmId]: backupFilesOnNfs },
-    } = await xo.call("backupNg.listVmBackups", { remotes: [nfsRemoteId] });
-    expect(backupFilesOnNfs.length).toBe(2);
-    if (testOnNfsAndSmb) {
+    if (testOnNfs) {
       const {
-        [smbRemoteId]: { [vmId]: backupFilesOnSmb },
-      } = await xo.call("backupNg.listVmBackups", { remotes: [smbRemoteId] });
+        [nfsId]: { [vmId]: backupFilesOnNfs },
+      } = await xo.call("backupNg.listVmBackups", { remotes: [nfsId] });
+      expect(backupFilesOnNfs.length).toBe(2);
+    }
+    if (testOnSmb) {
+      const {
+        [smbId]: { [vmId]: backupFilesOnSmb },
+      } = await xo.call("backupNg.listVmBackups", { remotes: [smbId] });
       expect(backupFilesOnSmb.length).toBe(2);
     }
   });
