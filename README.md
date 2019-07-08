@@ -94,7 +94,6 @@ describe("user", () => {
   > cp sample.config.toml ~/.config/xo-server-test/config.toml
   ```
   And complete it.  
-  If you want to run tests that do not require some parameters, you can comment them.  
 
 - To run the tests:  
   ```
