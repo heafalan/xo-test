@@ -139,9 +139,9 @@ class XoConnection extends Xo {
         typeOfResources
       ];
       for (const resource in resourcesToCreate[typeOfResources]) {
-        const [creationMethod, creationParams] = getCreationArgs({
-          ...resourcesToCreate[typeOfResources][resource],
-        });
+        const [creationMethod, creationParams] = getCreationArgs(
+          ...[resourcesToCreate[typeOfResources][resource]]
+        );
         const result = await this.call(creationMethod, creationParams);
 
         const [deletionMethod, deletionParams] = getDeletionArgs(result);
@@ -188,7 +188,7 @@ let xo;
 let resources;
 beforeAll(async () => {
   xo = await getConnection();
-  resources = await xo.createResources();
+  resources = await xo.createRequiredResources();
 });
 afterAll(async () => {
   await xo.deleteDurableResources();
