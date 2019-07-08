@@ -93,7 +93,7 @@ describe("user", () => {
   ```
   > cp sample.config.toml ~/.config/xo-server-test/config.toml
   ```
-  And complete it.  
+  And complete it.
 
 - To run the tests:  
   ```
