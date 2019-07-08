@@ -10,10 +10,13 @@
   default = ''
 
 [remotes]
-  default = ''
-  # some tests need informations to create a temporary nfs and/or a temporary smb.
   nfs = { name = '', url = '' }
   smb = { name = '', url = '' }
 
 [srs]
   default = ''
+
+# resources created before all tests and deleted at the end.
+[preCreatedResources]
+  [preCreatedResources.remotes]
+    default = { name = '', url = '' }
