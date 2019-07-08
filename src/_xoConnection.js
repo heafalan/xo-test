@@ -132,7 +132,7 @@ class XoConnection extends Xo {
   }
 
   async createRequiredResources() {
-    const resourcesRequiredCreated = {};
+    const requiredResources = {};
     const resourcesToCreate = config.preCreatedResources;
     for (const typeOfResources in resourcesToCreate) {
       const { getCreationArgs, getDeletionArgs } = ARGS_BY_TYPE[
@@ -142,13 +142,13 @@ class XoConnection extends Xo {
       for (const resource in resources) {
         const result = await this.call(...getCreationArgs(resources[resource]));
         this._durableResourceDisposers.push(...getDeletionArgs(result));
-        resourcesRequiredCreated[typeOfResources] = {
-          ...resourcesRequiredCreated[typeOfResources],
+        requiredResources[typeOfResources] = {
+          ...requiredResources[typeOfResources],
           [resource]: result,
         };
       }
     }
-    return resourcesRequiredCreated;
+    return requiredResources;
   }
 
   async getSchedule(predicate) {
