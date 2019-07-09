@@ -9,10 +9,6 @@
 [templates]
   default = ''
 
-[remotes]
-  nfs = { name = '', url = '' }
-  smb = { name = '', url = '' }
-
 [srs]
   default = ''
 
@@ -20,3 +16,5 @@
 [preCreatedResources]
   [preCreatedResources.remotes]
     default = { name = '', url = '' }
+    nfs = { name = '', url = '' }
+    smb = { name = '', url = '' }

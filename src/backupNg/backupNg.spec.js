@@ -385,10 +385,10 @@ describe("backupNg", () => {
     expect(vmTask.data.id).toBe(vmId);
   });
 
-  test("execute three times a delta backup with 2 remotes, 2 as retention, 2 as fullInterval", async () => {
+  test("execute three times a delta backup with 2 remotes, 2 as retention and 2 as fullInterval", async () => {
     jest.setTimeout(6e4);
-    const nfsId = await xo.createTempRemote(config.remotes.nfs);
-    const smbId = await xo.createTempRemote(config.remotes.smb);
+    const nfsId = resources.remotes.nfs.id;
+    const smbId = resources.remotes.smb.id;
 
     const vmId = await xo.createTempVm({
       name_label: "XO Test Temp",
