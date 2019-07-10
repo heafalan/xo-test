@@ -5,6 +5,7 @@
 
 [vms]
   default = ''
+  vmWithLargeSizeDisks = ''
 
 [templates]
   default = ''

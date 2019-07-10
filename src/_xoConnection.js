@@ -137,7 +137,7 @@ class XoConnection extends Xo {
     return id;
   }
 
-  async runBackupJob(jobId, scheduleId, { remotes }, nExecutions, vmId) {
+  async runBackupJob(jobId, scheduleId, { remotes }, nExecutions) {
     for (let i = 0; i < nExecutions; i++) {
       await xo.call("backupNg.runJob", { id: jobId, schedule: scheduleId });
     }
@@ -145,7 +145,7 @@ class XoConnection extends Xo {
     if (remotes) {
       for (let i = 0; i < remotes.length; i++) {
         const {
-          [remotes[i]]: { [vmId]: backupFiles },
+          [remotes[i]]: { [config.vms.vmWithLargeSizeDisks]: backupFiles },
         } = await xo.call("backupNg.listVmBackups", { remotes: [remotes[i]] });
         for (let j = 0; j < backupFiles.length; j++) {
           this._tempResourceDisposers.push("backupNg.deleteVmBackup", {

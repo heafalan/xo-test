@@ -406,19 +406,6 @@ describe("backupNg", () => {
       );
     }
 
-    const vmId = await xo.createTempVm({
-      name_label: "XO Test Temp",
-      name_description: "Creating a temporary vm",
-      template: config.templates.default,
-      VDIs: [
-        {
-          size: 1,
-          SR: config.srs.default,
-          type: "user",
-        },
-      ],
-    });
-
     const scheduleTempId = randomId();
     const { id: jobId } = await xo.createTempBackupNgJob({
       mode: "delta",
@@ -439,7 +426,7 @@ describe("backupNg", () => {
         [scheduleTempId]: { exportRetention: 2 },
       },
       vms: {
-        id: vmId,
+        id: config.vms.vmWithLargeSizeDisks,
       },
     });
 
@@ -454,8 +441,7 @@ describe("backupNg", () => {
       jobId,
       schedule.id,
       { remotes: operationalRemote },
-      nExecutions,
-      vmId
+      nExecutions
     );
 
     // test on retention
