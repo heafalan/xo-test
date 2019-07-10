@@ -137,32 +137,25 @@ class XoConnection extends Xo {
     return id;
   }
 
-  async runBackupJob(
-    jobId,
-    { exportRetention, copyRetention },
-    schedule,
-    numberOfExecution
-  ) {
-    for (let i = 0; i < numberOfExecution; i++) {
-      await xo.call("backupNg.runJob", { id: jobId, schedule });
+  async runBackupJob(jobId, scheduleId, { remotes }, nExecutions, vmId) {
+    for (let i = 0; i < nExecutions; i++) {
+      await xo.call("backupNg.runJob", { id: jobId, schedule: scheduleId });
     }
-    if (exportRetention || copyRetention) {
-      for (const id in this.objects.all) {
-        if (this.objects.all[id].other) {
-          const {
-            "xo:backup:job": backupJob,
-            "xo:backup:schedule": backupSchedule,
-          } = this.objects.all[id].other;
-          if (backupJob === jobId && backupSchedule === schedule) {
-            this._tempResourceDisposers.push("vm.delete", { id });
-          }
+    let backups = {};
+    if (remotes) {
+      for (let i = 0; i < remotes.length; i++) {
+        const {
+          [remotes[i]]: { [vmId]: backupFiles },
+        } = await xo.call("backupNg.listVmBackups", { remotes: [remotes[i]] });
+        for (let j = 0; j < backupFiles.length; j++) {
+          this._tempResourceDisposers.push("backupNg.deleteVmBackup", {
+            id: backupFiles[j].id,
+          });
         }
+        backups = { ...backups, [remotes[i]]: backupFiles };
       }
     }
-    return this.call("backupNg.getLogs", {
-      jobId,
-      scheduleId: schedule.id,
-    });
+    return backups;
   }
 
   async createRequiredResources() {
