@@ -135,13 +135,13 @@ class XoConnection extends Xo {
     for (let i = 0; i < nExecutions; i++) {
       await xo.call("backupNg.runJob", { id: jobId, schedule: scheduleId });
     }
-    let backups = {};
+    const backups = {};
     if (remotes) {
       const backupsByRemote = await xo.call("backupNg.listVmBackups", {
         remotes,
       });
       for (const remote in backupsByRemote) {
-        backups = { ...backups, [remote]: [] };
+        backups[remotes] = [];
         forOwn(backupsByRemote[remote], backupsByVm => {
           forOwn(
             backupsByVm,
