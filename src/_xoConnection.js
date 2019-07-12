@@ -122,12 +122,6 @@ class XoConnection extends Xo {
     return job;
   }
 
-  async createTempRemote(params) {
-    const { id } = await this.call("remote.create", params);
-    this._tempResourceDisposers.push("remote.delete", { id });
-    return id;
-  }
-
   async createTempVm(params) {
     const id = await this.call("vm.create", params);
     this._tempResourceDisposers.push("vm.delete", { id });
@@ -137,22 +131,30 @@ class XoConnection extends Xo {
     return id;
   }
 
-  async runBackupJob(jobId, scheduleId, { remotes }, nExecutions) {
+  async runBackupJob(jobId, scheduleId, { remotes, nExecutions = 1 }) {
     for (let i = 0; i < nExecutions; i++) {
       await xo.call("backupNg.runJob", { id: jobId, schedule: scheduleId });
     }
     let backups = {};
     if (remotes) {
-      for (let i = 0; i < remotes.length; i++) {
-        const {
-          [remotes[i]]: { [config.vms.vmWithLargeSizeDisks]: backupFiles },
-        } = await xo.call("backupNg.listVmBackups", { remotes: [remotes[i]] });
-        for (let j = 0; j < backupFiles.length; j++) {
-          this._tempResourceDisposers.push("backupNg.deleteVmBackup", {
-            id: backupFiles[j].id,
-          });
-        }
-        backups = { ...backups, [remotes[i]]: backupFiles };
+      const listVmBackups = await xo.call("backupNg.listVmBackups", {
+        remotes,
+      });
+      for (const remote in listVmBackups) {
+        backups = { [remote]: [] };
+        forOwn(listVmBackups[remote], backupsByRemote => {
+          forOwn(
+            backupsByRemote,
+            ({ jobId: backupJobId, scheduleId: backupScheduleId, id }) => {
+              if (jobId === backupJobId && scheduleId === backupScheduleId) {
+                this._tempResourceDisposers.push("backupNg.deleteVmBackup", {
+                  id,
+                });
+                backups[remote].push(id);
+              }
+            }
+          );
+        });
       }
     }
     return backups;

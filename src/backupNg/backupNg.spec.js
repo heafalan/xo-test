@@ -1,5 +1,6 @@
 /* eslint-env jest */
 
+import { forOwn } from "lodash";
 import { noSuchObject } from "xo-common/api-errors";
 
 import config from "../_config";
@@ -9,6 +10,84 @@ import xo, { resources } from "../_xoConnection";
 const DEFAULT_SCHEDULE = {
   name: "scheduleTest",
   cron: "0 * * * * *",
+};
+
+const validateRootTask = (log, props) =>
+  expect(log).toMatchSnapshot({
+    end: expect.any(Number),
+    id: expect.any(String),
+    jobId: expect.any(String),
+    scheduleId: expect.any(String),
+    start: expect.any(Number),
+    ...props,
+  });
+
+const validateVmTask = (task, vmId, props = {}) => {
+  if (task.status !== "success") {
+    props.result = {
+      stack: expect.any(String),
+    };
+  }
+  expect(task).toMatchSnapshot({
+    data: {
+      id: expect.any(String),
+    },
+    end: expect.any(Number),
+    id: expect.any(String),
+    message: expect.any(String),
+    start: expect.any(Number),
+    ...props,
+  });
+  expect(task.data.id).toBe(vmId);
+};
+
+const validateSnapshotTask = (task, props) =>
+  expect(task).toMatchSnapshot({
+    end: expect.any(Number),
+    id: expect.any(String),
+    result: expect.any(String),
+    start: expect.any(Number),
+    ...props,
+  });
+
+const validateExportTask = (task, isFull, type, srOrRemoteIds, props) => {
+  if (task.status !== "success") {
+    props.result = {
+      stack: expect.any(String),
+    };
+  }
+  expect(task).toMatchSnapshot({
+    data: {
+      id: expect.any(String),
+      isFull,
+      type,
+    },
+    end: expect.any(Number),
+    id: expect.any(String),
+    message: expect.any(String),
+    start: expect.any(Number),
+    ...props,
+  });
+  expect(srOrRemoteIds).toContain(task.data.id);
+};
+
+const validateOperationTask = (task, props) => {
+  if (task.status !== "success") {
+    props.result = {
+      stack: expect.any(String),
+    };
+  } else {
+    props.result = {
+      size: expect.any(Number),
+    };
+  }
+  expect(task).toMatchSnapshot({
+    end: expect.any(Number),
+    id: expect.any(String),
+    message: expect.any(String),
+    start: expect.any(Number),
+    ...props,
+  });
 };
 
 describe("backupNg", () => {
@@ -388,30 +467,17 @@ describe("backupNg", () => {
   test("execute three times a delta backup with 2 remotes, 2 as retention and 2 as fullInterval", async () => {
     jest.setTimeout(6e4);
 
-    const operationalRemote = [];
-    const nfsId = resources.remotes.nfs.id;
-    await xo.call("remote.test", { id: nfsId });
-    operationalRemote.push(nfsId);
-
-    let smbId;
-    let testOnSmb;
-    if (resources.remotes.smb) {
-      smbId = resources.remotes.smb.id;
-      testOnSmb = false;
-      await xo.call("remote.test", { id: smbId }).then(
-        () => operationalRemote.push(smbId),
-        () => {
-          testOnSmb = false;
-        }
-      );
-    }
+    const { nfs, smb } = resources.remotes;
+    const remotes = smb === undefined ? [nfs.id] : [smb.id, nfs.id];
 
     const scheduleTempId = randomId();
+    const vmId = config.vms.vmToBackup;
+    const fullInterval = 2;
     const { id: jobId } = await xo.createTempBackupNgJob({
       mode: "delta",
       remotes: {
         id: {
-          __or: operationalRemote,
+          __or: remotes,
         },
       },
       schedules: {
@@ -420,13 +486,13 @@ describe("backupNg", () => {
       settings: {
         "": {
           reportWhen: "never",
-          fullInterval: 2,
+          fullInterval,
         },
-        [nfsId]: { deleteFirst: true },
+        [nfs.id]: { deleteFirst: true },
         [scheduleTempId]: { exportRetention: 2 },
       },
       vms: {
-        id: config.vms.vmWithLargeSizeDisks,
+        id: vmId,
       },
     });
 
@@ -434,19 +500,12 @@ describe("backupNg", () => {
     expect(typeof schedule).toBe("object");
 
     const nExecutions = 3;
-    const {
-      [nfsId]: backupFilesOnNfs,
-      [smbId]: backupFilesOnSmb,
-    } = await xo.runBackupJob(
-      jobId,
-      schedule.id,
-      { remotes: operationalRemote },
-      nExecutions
-    );
+    const backupsByRemote = await xo.runBackupJob(jobId, schedule.id, {
+      remotes,
+      nExecutions,
+    });
 
-    // test on retention
-    expect(backupFilesOnNfs.length).toBe(2);
-    if (testOnSmb) expect(backupFilesOnSmb.length).toBe(2);
+    forOwn(backupsByRemote, backups => expect(backups.length).toBe(2));
 
     const backupLogs = await xo.call("backupNg.getLogs", {
       jobId,
@@ -454,98 +513,48 @@ describe("backupNg", () => {
     });
     expect(backupLogs.length).toBe(nExecutions);
 
-    const testOnExportLogs = (backupLog, expectedIsFull) => {
-      const {
-        tasks: [{ tasks }],
-        ...log
-      } = backupLog;
-      expect(log).toEqual({
-        data: {
-          mode: "delta",
-          reportWhen: "never",
-        },
-        end: expect.any(Number),
-        id: expect.any(String),
-        jobId,
-        message: "backup",
-        scheduleId: schedule.id,
-        start: expect.any(Number),
-        status: "success",
+    backupLogs.forEach(({ tasks, ...log }, key) => {
+      validateRootTask(log, { message: "backup", status: "success" });
+      tasks.forEach(({ tasks, ...vmTask }) => {
+        if (vmTask.data !== undefined && vmTask.data.type === "VM") {
+          validateVmTask(vmTask, vmId, { status: "success" });
+          tasks.forEach(({ tasks, ...subTask }) => {
+            if (subTask.message === "snapshot") {
+              validateSnapshotTask(subTask, { status: "success" });
+            }
+            if (subTask.message === "export") {
+              validateExportTask(
+                subTask,
+                key % fullInterval === 0,
+                "remote",
+                remotes,
+                {
+                  status: "success",
+                }
+              );
+              let mergeTaskKey, transferTaskKey;
+              tasks.forEach((operationTask, key) => {
+                if (
+                  operationTask.message === "transfer" ||
+                  operationTask.message === "merge"
+                ) {
+                  validateOperationTask(operationTask, { status: "success" });
+                  if (operationTask.message === "transfer") {
+                    mergeTaskKey = key;
+                  } else {
+                    transferTaskKey = key;
+                  }
+                }
+              });
+              expect(
+                subTask.data.id === nfs.id
+                  ? mergeTaskKey > transferTaskKey
+                  : mergeTaskKey < transferTaskKey
+              ).toBe(true);
+            }
+          });
+        }
       });
-
-      const exportTasks = [];
-      tasks.forEach(task => {
-        if (task.message === "export") exportTasks.push(task);
-      });
-
-      const exportTasksOnNfs = exportTasks.find(
-        ({ data: { id } }) => id === nfsId
-      );
-
-      const {
-        data: dataOnNfs,
-        tasks: subTasksOnNfs,
-        ...exportSubTasksOnNfs
-      } = exportTasksOnNfs;
-      expect(dataOnNfs).toEqual({
-        id: nfsId,
-        isFull: expectedIsFull,
-        type: "remote",
-      });
-
-      // deleteFirst=true
-      expect(subTasksOnNfs[0].message).toBe("merge");
-      expect(subTasksOnNfs[0].status).toBe("success");
-      expect(subTasksOnNfs[1].message).toBe("transfer");
-      expect(subTasksOnNfs[1].status).toBe("success");
-
-      expect(exportSubTasksOnNfs).toEqual({
-        end: expect.any(Number),
-        id: expect.any(String),
-        message: "export",
-        start: expect.any(Number),
-        status: "success",
-      });
-
-      if (testOnSmb) {
-        const exportTasksOnSmb = exportTasks.find(
-          ({ data: { id } }) => id === smbId
-        );
-
-        const {
-          data: dataOnSmb,
-          tasks: subTaskOnSmb,
-          ...exportSubTasksOnSmb
-        } = exportTasksOnSmb;
-        expect(dataOnSmb).toEqual({
-          id: smbId,
-          isFull: expectedIsFull,
-          type: "remote",
-        });
-
-        // deleteFirst=false
-        expect(subTaskOnSmb[0].message).toBe("transfer");
-        expect(subTaskOnSmb[0].status).toBe("success");
-        expect(subTaskOnSmb[1].message).toBe("merge");
-        expect(subTaskOnSmb[1].status).toBe("success");
-
-        expect(exportSubTasksOnSmb).toEqual({
-          end: expect.any(Number),
-          id: expect.any(String),
-          message: "export",
-          start: expect.any(Number),
-          status: "success",
-        });
-      }
-    };
-
-    // test the first execution that should be a full backup
-    testOnExportLogs(backupLogs[0], true);
-
-    // test the second execution that should be a delta
-    testOnExportLogs(backupLogs[1], false);
-
-    // test the third execution that should be a full backup (fullInterval=2)
-    testOnExportLogs(backupLogs[2], true);
+    });
   });
 });
