@@ -137,14 +137,14 @@ class XoConnection extends Xo {
     }
     let backups = {};
     if (remotes) {
-      const listVmBackups = await xo.call("backupNg.listVmBackups", {
+      const backupsByRemote = await xo.call("backupNg.listVmBackups", {
         remotes,
       });
-      for (const remote in listVmBackups) {
-        backups = { [remote]: [] };
-        forOwn(listVmBackups[remote], backupsByRemote => {
+      for (const remote in backupsByRemote) {
+        backups = { ...backups, [remote]: [] };
+        forOwn(backupsByRemote[remote], backupsByVm => {
           forOwn(
-            backupsByRemote,
+            backupsByVm,
             ({ jobId: backupJobId, scheduleId: backupScheduleId, id }) => {
               if (jobId === backupJobId && scheduleId === backupScheduleId) {
                 this._tempResourceDisposers.push("backupNg.deleteVmBackup", {
