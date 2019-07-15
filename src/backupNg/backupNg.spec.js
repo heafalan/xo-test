@@ -23,11 +23,6 @@ const validateRootTask = (log, props) =>
   });
 
 const validateVmTask = (task, vmId, props = {}) => {
-  if (task.status !== "success") {
-    props.result = {
-      stack: expect.any(String),
-    };
-  }
   expect(task).toMatchSnapshot({
     data: {
       id: expect.any(String),
@@ -50,18 +45,8 @@ const validateSnapshotTask = (task, props) =>
     ...props,
   });
 
-const validateExportTask = (task, isFull, type, srOrRemoteIds, props) => {
-  if (task.status !== "success") {
-    props.result = {
-      stack: expect.any(String),
-    };
-  }
+const validateExportTask = (task, srOrRemoteIds, props) => {
   expect(task).toMatchSnapshot({
-    data: {
-      id: expect.any(String),
-      isFull,
-      type,
-    },
     end: expect.any(Number),
     id: expect.any(String),
     message: expect.any(String),
@@ -72,15 +57,6 @@ const validateExportTask = (task, isFull, type, srOrRemoteIds, props) => {
 };
 
 const validateOperationTask = (task, props) => {
-  if (task.status !== "success") {
-    props.result = {
-      stack: expect.any(String),
-    };
-  } else {
-    props.result = {
-      size: expect.any(Number),
-    };
-  }
   expect(task).toMatchSnapshot({
     end: expect.any(Number),
     id: expect.any(String),
@@ -514,31 +490,42 @@ describe("backupNg", () => {
     expect(backupLogs.length).toBe(nExecutions);
 
     backupLogs.forEach(({ tasks, ...log }, key) => {
-      validateRootTask(log, { message: "backup", status: "success" });
+      validateRootTask(log, {
+        data: {
+          mode: "delta",
+          reportWhen: "never",
+        },
+        message: "backup",
+        status: "success",
+      });
+      let vmTaskValidated = false;
       tasks.forEach(({ tasks, ...vmTask }) => {
         if (vmTask.data !== undefined && vmTask.data.type === "VM") {
+          expect(vmTaskValidated).toBe(false);
           validateVmTask(vmTask, vmId, { status: "success" });
           tasks.forEach(({ tasks, ...subTask }) => {
             if (subTask.message === "snapshot") {
               validateSnapshotTask(subTask, { status: "success" });
             }
             if (subTask.message === "export") {
-              validateExportTask(
-                subTask,
-                key % fullInterval === 0,
-                "remote",
-                remotes,
-                {
-                  status: "success",
-                }
-              );
+              validateExportTask(subTask, remotes, {
+                data: {
+                  id: expect.any(String),
+                  isFull: key % fullInterval === 0,
+                  type: "remote",
+                },
+                status: "success",
+              });
               let mergeTaskKey, transferTaskKey;
               tasks.forEach((operationTask, key) => {
                 if (
                   operationTask.message === "transfer" ||
                   operationTask.message === "merge"
                 ) {
-                  validateOperationTask(operationTask, { status: "success" });
+                  validateOperationTask(operationTask, {
+                    result: { size: expect.any(Number) },
+                    status: "success",
+                  });
                   if (operationTask.message === "transfer") {
                     mergeTaskKey = key;
                   } else {
@@ -553,6 +540,7 @@ describe("backupNg", () => {
               ).toBe(true);
             }
           });
+          vmTaskValidated = true;
         }
       });
     });

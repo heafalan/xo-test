@@ -136,13 +136,13 @@ class XoConnection extends Xo {
       await xo.call("backupNg.runJob", { id: jobId, schedule: scheduleId });
     }
     const backups = {};
-    if (remotes) {
+    if (remotes !== undefined) {
       const backupsByRemote = await xo.call("backupNg.listVmBackups", {
         remotes,
       });
-      for (const remote in backupsByRemote) {
-        backups[remotes] = [];
-        forOwn(backupsByRemote[remote], backupsByVm => {
+      forOwn(backupsByRemote, (remote, remoteId) => {
+        backups[remoteId] = [];
+        forOwn(remote, backupsByVm => {
           forOwn(
             backupsByVm,
             ({ jobId: backupJobId, scheduleId: backupScheduleId, id }) => {
@@ -150,12 +150,12 @@ class XoConnection extends Xo {
                 this._tempResourceDisposers.push("backupNg.deleteVmBackup", {
                   id,
                 });
-                backups[remote].push(id);
+                backups[remoteId].push(id);
               }
             }
           );
         });
-      }
+      });
     }
     return backups;
   }
