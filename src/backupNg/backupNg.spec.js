@@ -4,7 +4,7 @@ import { noSuchObject } from "xo-common/api-errors";
 
 import config from "../_config";
 import randomId from "../_randomId";
-import xo from "../_xoConnection";
+import xo, { resources } from "../_xoConnection";
 
 const DEFAULT_SCHEDULE = {
   name: "scheduleTest",
@@ -19,7 +19,7 @@ describe("backupNg", () => {
       name: "default-backupNg",
       mode: "full",
       vms: {
-        id: config.vmIdXoTest,
+        id: config.vms.default,
       },
       settings: {
         "": {
@@ -35,7 +35,9 @@ describe("backupNg", () => {
       expect(backupNg).toMatchSnapshot({
         id: expect.any(String),
         userId: expect.any(String),
+        vms: expect.any(Object),
       });
+      expect(backupNg.vms).toEqual(defaultBackupNg.vms);
       expect(backupNg.userId).toBe(xo._user.id);
     });
 
@@ -58,7 +60,9 @@ describe("backupNg", () => {
         id: expect.any(String),
         userId: expect.any(String),
         settings: expect.any(Object),
+        vms: expect.any(Object),
       });
+      expect(backupNgJob.vms).toEqual(defaultBackupNg.vms);
       expect(backupNgJob.userId).toBe(xo._user.id);
 
       expect(Object.keys(backupNgJob.settings).length).toBe(2);
@@ -127,7 +131,7 @@ describe("backupNg", () => {
           [scheduleTempId]: { snapshotRetention: 1 },
         },
         vms: {
-          id: config.vmIdXoTest,
+          id: config.vms.default,
           name: "test-vm-backupNg",
         },
       });
@@ -169,7 +173,7 @@ describe("backupNg", () => {
       const vmIdWithoutDisks = await xo.createTempVm({
         name_label: "XO Test Without Disks",
         name_description: "Creating a vm without disks",
-        template: config.xoTestTemplateId,
+        template: config.templates.default,
       });
 
       const scheduleTempId = randomId();
@@ -224,12 +228,12 @@ describe("backupNg", () => {
       expect(vmTask.data.id).toBe(vmIdWithoutDisks);
     });
 
-    it("fails trying to run backup job with remotes without exportRetention", async () => {
+    it("fails trying to run backup job without retentions", async () => {
       const scheduleTempId = randomId();
       const { id: jobId } = await xo.createTempBackupNgJob({
         ...defaultBackupNg,
         remotes: {
-          id: config.remotes.defaultRemote,
+          id: resources.remotes.default.id,
         },
         schedules: {
           [scheduleTempId]: DEFAULT_SCHEDULE,
@@ -237,6 +241,9 @@ describe("backupNg", () => {
         settings: {
           ...defaultBackupNg.settings,
           [scheduleTempId]: {},
+        },
+        srs: {
+          id: config.srs.default,
         },
       });
 
@@ -274,7 +281,7 @@ describe("backupNg", () => {
         },
         start: expect.any(Number),
       });
-      expect(task.data.id).toBe(config.vmIdXoTest);
+      expect(task.data.id).toBe(config.vms.default);
     });
   });
 
@@ -283,11 +290,11 @@ describe("backupNg", () => {
     const vmId = await xo.createTempVm({
       name_label: "XO Test Temp",
       name_description: "Creating a temporary vm",
-      template: config.xoTestTemplateId,
+      template: config.templates.default,
       VDIs: [
         {
           size: 1,
-          SR: config.srs.defaultSr,
+          SR: config.srs.default,
           type: "user",
         },
       ],

@@ -89,6 +89,12 @@ describe("user", () => {
 
 ## Usage
 
+- Before running the tests, you have to create a config file for xo-server-test.  
+  ```
+  > cp sample.config.toml ~/.config/xo-server-test/config.toml
+  ```
+  And complete it.
+
 - To run the tests:  
   ```
   > npm ci
@@ -112,7 +118,7 @@ describe("user", () => {
   Done in 7.92s.
   ```
 
-- You can run only tests related to changed files, and review the failed output by using: `> yarn test -w`
+- You can run only tests related to changed files, and review the failed output by using: `> yarn test --watch`
 
 ## Contributions
 
